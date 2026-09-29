@@ -1,0 +1,14 @@
+node_modules/
+.vercel
+.next
+dist/
+.env
+.env.*
+*.log
+.DS_Store
+.netlify/
+.gemini/
+scratch/
+*.bak
+github_token.txt
+temp_user_input.txt

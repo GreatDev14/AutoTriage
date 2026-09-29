@@ -1,0 +1,12 @@
+.git
+.vercel
+node_modules
+scratch
+*.hta
+*.url
+test_write*.txt
+_*.jfif
+convert-icons.html
+make-icons.html
+generate-icons.js
+check_images.js

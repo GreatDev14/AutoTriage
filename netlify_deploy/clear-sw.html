@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Clear AutoTriage Service Worker</title>
+  <style>
+    body{font-family:system-ui;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    button{background:#ff3333;color:#111;padding:1rem 2rem;border:none;border-radius:8px;cursor:pointer;font-size:1rem}
+  </style>
+</head>
+<body>
+  <button id="clear">Clear Service Worker &amp; Reload</button>
+  <script>
+    document.getElementById('clear').onclick = () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations()
+          .then(regs => Promise.all(regs.map(r => r.unregister())))
+          .finally(() => location.href = './simple.html');
+      } else {
+        location.href = './simple.html';
+      }
+    };
+  </script>
+</body>
+</html>

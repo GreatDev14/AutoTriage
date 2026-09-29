@@ -1,0 +1,13 @@
+Index of undefined: 344
+Context of undefined:
+ getItem: function(k) { return mockStorage[k] !== undefined ? mockStorage[k] : null; },
+          s
+
+Emergency Button HTML:
+<button class="main-btn emergency-btn" onclick="goTo('emergency')">
+      <div class="mb-icon-wrap"></div>
+      <div class="mb-bottom">
+        <div class="mb-title">EMERGENCY</div>
+        <div class="mb-desc">Police 911  112  Rescue 999</div>
+      </div>
+    </button>

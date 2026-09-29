@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>AutoTriage Simple Setup Wizard</title>
+    <HTA:APPLICATION 
+        ID="oAutoTriageSimpleSetup"
+        APPLICATIONNAME="AutoTriageSimpleSetup"
+        SYSMENU="yes"
+        CAPTION="yes"
+        SHOWINTASKBAR="yes"
+        SINGLEINSTANCE="yes"
+        WINDOWSTATE="normal"
+        BORDER="thin"
+        INNERBORDER="no"
+        SCROLL="no"
+    >
+    <style>
+        body {
+            background: #0f0f11;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            width: 480px;
+            background: #1c1c1e;
+            border: 1px solid #2c2c2e;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .logo-img {
+            width: 88px;
+            height: 88px;
+            margin-bottom: 24px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+            display: inline-block;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.04); opacity: 1; filter: drop-shadow(0 0 15px rgba(0, 208, 132, 0.4)); }
+            100% { transform: scale(1); opacity: 0.9; }
+        }
+        .logo-pulse {
+            animation: pulse 2s infinite ease-in-out;
+        }
+        h2 {
+            font-size: 24px;
+            margin: 0 0 10px 0;
+            letter-spacing: 1px;
+        }
+        p {
+            font-size: 13px;
+            color: #8e93a0;
+            line-height: 1.6;
+            margin: 0 0 30px 0;
+        }
+        .btn-install {
+            background: #00d084;
+            color: #000000;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .btn-install:hover {
+            background: #00b371;
+        }
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #2c2c2e;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #00d084;
+        }
+        .progress-text {
+            font-size: 11px;
+            color: #8e93a0;
+            margin-top: 8px;
+        }
+        .success-container {
+            display: none;
+        }
+        .success-icon {
+            color: #00d084;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+    </style>
+    <script type="text/jscript">
+        window.resizeTo(560, 520);
+        window.moveTo((screen.width - 560) / 2, (screen.height - 520) / 2);
+
+        function doInstall() {
+            document.getElementById("introView").style.display = "none";
+            document.getElementById("progressView").style.display = "block";
+            
+            var progressFill = document.getElementById("progressFill");
+            var progressText = document.getElementById("progressText");
+            
+            var width = 0;
+            var interval = setInterval(function() {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    completeInstall();
+                } else {
+                    width += 5;
+                    progressFill.style.width = width + "%";
+                    if (width < 30) {
+                        progressText.innerHTML = "Creating installation directories...";
+                    } else if (width < 70) {
+                        progressText.innerHTML = "Copying core application files...";
+                    } else {
+                        progressText.innerHTML = "Creating Desktop & Start Menu Shortcuts...";
+                    }
+                }
+            }, 100);
+        }
+
+        function completeInstall() {
+            try {
+                var shell = new ActiveXObject("WScript.Shell");
+                var fso = new ActiveXObject("Scripting.FileSystemObject");
+                
+                // Get UserProfile path dynamically
+                var userProfile = shell.ExpandEnvironmentStrings("%USERPROFILE%");
+                var installDir = userProfile + "\\AppData\\Local\\AutoTriageSimple";
+                
+                // Get current HTA path
+                var path = window.location.pathname;
+                path = path.replace(/^\/+/g, '');
+                path = decodeURIComponent(path);
+                path = path.replace(/\//g, '\\');
+                var dir = path.substring(0, path.lastIndexOf('\\'));
+                
+                // 1. Create target parent directory
+                if (!fso.FolderExists(installDir)) {
+                    fso.CreateFolder(installDir);
+                }
+                
+                // 2. Locate source by checking if simple.html exists in development/workspace folders first
+                var srcDir = "";
+                if (fso.FileExists("C:\\Users\\HP\\OneDrive\\Documents\\PROJECTS1\\AutoTriage\\simple.html")) {
+                    srcDir = "C:\\Users\\HP\\OneDrive\\Documents\\PROJECTS1\\AutoTriage";
+                } else if (fso.FileExists("C:\\Users\\HP\\AutoTriage\\simple.html")) {
+                    srcDir = "C:\\Users\\HP\\AutoTriage";
+                } else if (fso.FileExists(dir + "\\simple.html")) {
+                    srcDir = dir;
+                }
+                
+                // 3. Copy files if source found
+                if (srcDir !== "") {
+                    fso.CopyFile(srcDir + "\\*.html", installDir + "\\", true);
+                    fso.CopyFile(srcDir + "\\*.hta", installDir + "\\", true);
+                    fso.CopyFile(srcDir + "\\*.json", installDir + "\\", true);
+                    fso.CopyFile(srcDir + "\\*.mp4", installDir + "\\", true);
+                    fso.CopyFolder(srcDir + "\\css", installDir + "\\", true);
+                    fso.CopyFolder(srcDir + "\\js", installDir + "\\", true);
+                    fso.CopyFolder(srcDir + "\\assets", installDir + "\\", true);
+                } else {
+                    throw new Error("Could not locate local source files. Please make sure the project directory exists at C:\\Users\\HP\\AutoTriage.");
+                }
+                
+                // 4. Create Desktop Shortcut
+                var desktopPath = shell.SpecialFolders("Desktop");
+                var desktopLink = shell.CreateShortcut(desktopPath + "\\AutoTriage Simple.lnk");
+                desktopLink.TargetPath = installDir + "\\AutoTriage_Simple.hta";
+                desktopLink.WorkingDirectory = installDir;
+                desktopLink.Description = "Launch AutoTriage Simple";
+                desktopLink.IconLocation = installDir + "\\assets\\logo.ico, 0";
+                desktopLink.Save();
+                
+                // 5. Create Start Menu Shortcut
+                var startMenuPath = shell.SpecialFolders("StartMenu") + "\\Programs";
+                var startMenuLink = shell.CreateShortcut(startMenuPath + "\\AutoTriage Simple.lnk");
+                startMenuLink.TargetPath = installDir + "\\AutoTriage_Simple.hta";
+                startMenuLink.WorkingDirectory = installDir;
+                startMenuLink.Description = "Launch AutoTriage Simple";
+                startMenuLink.IconLocation = installDir + "\\assets\\logo.ico, 0";
+                startMenuLink.Save();
+                
+                // Show Success Screen
+                document.getElementById("progressView").style.display = "none";
+                document.getElementById("successView").style.display = "block";
+                
+                // Auto-launch after 1.5 seconds pointing to localhost server to load custom PWA taskbar logo
+                setTimeout(function() {
+                    var targetUrl = "http://localhost:8080/simple.html?standalone=true&v=999";
+                    var cmd = 'cmd.exe /c start chrome --app="' + targetUrl + '" || start msedge --app="' + targetUrl + '"';
+                    shell.Run(cmd, 0, false);
+                    window.close();
+                }, 1500);
+                
+            } catch(e) {
+                alert("Installation failed: " + e.message);
+                window.close();
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- INTRO SCREEN -->
+        <div id="introView">
+            <img src="assets/logo.png" alt="AutoTriage Logo" class="logo-img" />
+            <h2>AutoTriage Simple Setup</h2>
+            <p>This installer will register AutoTriage Simple Mobile UI on your laptop. It will copy mobile assets and create program shortcuts on your Desktop and Start Menu.</p>
+            <button class="btn-install" onclick="doInstall()">INSTALL MOBILE APP →</button>
+        </div>
+
+        <!-- PROGRESS SCREEN -->
+        <div id="progressView" class="progress-container">
+            <img src="assets/logo.png" alt="AutoTriage Logo" class="logo-img logo-pulse" />
+            <h2 style="margin-bottom:20px;">Installing Mobile Application...</h2>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div id="progressText" class="progress-text">Initializing files...</div>
+        </div>
+
+        <!-- SUCCESS SCREEN -->
+        <div id="successView" class="success-container">
+            <img src="assets/logo.png" alt="AutoTriage Logo" class="logo-img" style="border-color: #00d084; filter: drop-shadow(0 0 15px rgba(0, 208, 132, 0.3));" />
+            <h2>Installation Complete!</h2>
+            <p style="margin-bottom:0;">AutoTriage Simple has been successfully installed.<br>Launching dashboard now...</p>
+        </div>
+    </div>
+    <style>
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</body>
+</html>

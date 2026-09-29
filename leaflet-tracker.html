@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>AutoTriage — Leaflet Live Tracker</title>
+  
+  <!-- PWA Standalone Mode Guard -->
+  <script>
+    (function() {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+                           || window.navigator.standalone === true 
+                           || window.location.href.indexOf('standalone=true') !== -1 
+                           || window.location.href.indexOf('dev=true') !== -1
+                           || window.location.protocol === 'file:' 
+                           || window.location.hostname === 'localhost' 
+                           || window.location.hostname === '127.0.0.1'
+                           || sessionStorage.getItem('dev_bypass') === 'true';
+      
+      if (!isStandalone) {
+        // Safe FOUC Shield
+        document.write(`
+          <style id="pwa-blocker-style">
+            body { overflow: hidden !important; pointer-events: none !important; }
+            header { display: none !important; }
+            .app-container { display: none !important; }
+          </style>
+        `);
+
+        window.addEventListener('DOMContentLoaded', () => {
+          const overlay = document.createElement('div');
+          overlay.id = 'pwaBlockerShield';
+          overlay.style.cssText = 'position:fixed; inset:0; z-index:999999; background:rgba(10,10,12,0.85); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); display:flex; align-items:center; justify-content:center; padding:24px; color:#fff; font-family:"Space Mono",monospace; pointer-events:auto !important;';
+          overlay.innerHTML = `
+            <div style="max-width:480px; width:100%; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:28px; padding:40px 32px; text-align:center; box-shadow:0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);">
+              <div style="width:72px; height:72px; background:linear-gradient(135deg, rgba(77,166,255,0.2) 0%, rgba(77,166,255,0.05) 100%); border:1px solid rgba(77,166,255,0.4); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 24px; animation: breathe 3s ease-in-out infinite;">🛰️</div>
+              <h2 style="font-family:\'Outfit\',sans-serif; font-size:32px; letter-spacing:1px; color:#fff; line-height:1; margin-bottom:8px; font-weight:800;">LIVE RADAR REQUIRED</h2>
+              <div style="font-size:10px; color:#4da6ff; font-weight:bold; letter-spacing:1px; margin-bottom:24px; text-transform:uppercase;">STANDALONE SANDBOX CONTAINER</div>
+              
+              <p style="font-size:11px; color:#a0a0ab; line-height:1.8; margin-bottom:32px;">
+                Live GPS radar dispatch tracking requires secure system shell execution. To protect active socket routing, you must install this app to your home screen.
+              </p>
+
+              <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:20px; text-align:left; margin-bottom:32px;">
+                 <div style="font-size:10px; color:#4da6ff; font-weight:bold; letter-spacing:1px; margin-bottom:8px; text-transform:uppercase;">💻 SECURE SYSTEM INITIALIZATION</div>
+                 <div style="font-size:11px; color:#fff; line-height:1.7;">
+                   Please launch this tracking engine directly inside the installed <b>AutoTriage App</b> rather than a standard web tab.
+                 </div>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <button id="devBypassBtn" style="background:#fff; color:#000; border:none; padding:16px; border-radius:14px; font-weight:bold; font-size:14px; cursor:pointer; width:100%; font-family:\'Outfit\',sans-serif;">BYPASS SHIELD (DEVELOPER MODE) →</button>
+              </div>
+            </div>
+            <style>
+              @keyframes breathe {
+                0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(77,166,255,0.2)); }
+                50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(77,166,255,0.5)); }
+              }
+            </style>
+          `;
+          document.body.appendChild(overlay);
+
+          document.getElementById('devBypassBtn').onclick = () => {
+            sessionStorage.setItem('dev_bypass', 'true');
+            overlay.remove();
+            const style = document.getElementById('pwa-blocker-style');
+            if (style) style.remove();
+          };
+        });
+      }
+    })();
+  </script>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+        crossorigin="" />
+        
+  <!-- Google Fonts: Space Mono & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0a0a0c;
+      --panel-bg: rgba(18, 18, 24, 0.75);
+      --border: rgba(255, 255, 255, 0.08);
+      --fg: #f5f5f7;
+      --subtext: #8e8e93;
+      --accent: #4da6ff;
+      --accent-glow: rgba(77, 166, 255, 0.3);
+      --amber: #ff9f0a;
+      --amber-glow: rgba(255, 159, 10, 0.3);
+      --green: #30d158;
+      --shadow: rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--fg);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+    header {
+      height: 70px;
+      background: rgba(10, 10, 12, 0.9);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand img {
+      height: 36px;
+      width: 36px;
+      object-fit: contain;
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      background: var(--amber-glow);
+      color: var(--amber);
+      border: 1px solid rgba(255, 159, 10, 0.2);
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    /* MAIN CONTAINER */
+    .app-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+      height: calc(100vh - 70px);
+    }
+
+    /* SIDEBAR PANEL */
+    .sidebar {
+      width: 380px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      gap: 20px;
+      overflow-y: auto;
+      z-index: 999;
+      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.25);
+      transition: transform 0.3s ease;
+    }
+
+    /* MAP BLOCK */
+    #map {
+      flex: 1;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* SECTIONS */
+    .section-title {
+      font-size: 11px;
+      color: var(--subtext);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-family: 'Space Mono', monospace;
+      margin-bottom: 12px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateY(-2px);
+    }
+
+    /* GEOLOCATION CARD */
+    .geo-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .geo-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--subtext);
+      box-shadow: 0 0 8px var(--subtext);
+    }
+
+    .status-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulseGreen 1.5s infinite;
+    }
+
+    .status-dot.loading {
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      animation: pulseBlue 1.5s infinite;
+    }
+
+    .geo-coords {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--subtext);
+      background: rgba(0, 0, 0, 0.2);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    /* ACTION BUTTON */
+    .btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent) 0%, #1e82e6 100%);
+      color: #fff;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px var(--accent-glow);
+      transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .btn:hover {
+      box-shadow: 0 8px 24px rgba(77, 166, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg);
+      box-shadow: none;
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: none;
+    }
+
+    /* MECHANIC CARDS FEED */
+    .mech-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .mech-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mech-card.selected {
+      border-color: var(--amber);
+      background: rgba(255, 159, 10, 0.04);
+      box-shadow: 0 6px 20px rgba(255, 159, 10, 0.05);
+    }
+
+    .mech-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mech-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mech-avatar {
+      font-size: 24px;
+      background: rgba(255, 255, 255, 0.04);
+      height: 44px;
+      width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .mech-meta h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .mech-meta p {
+      font-size: 11px;
+      color: var(--subtext);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .mech-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--amber-glow);
+      color: var(--amber);
+      border: 1px solid rgba(255, 159, 10, 0.2);
+    }
+
+    .mech-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      padding-top: 10px;
+      font-size: 12px;
+    }
+
+    .mech-dist {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .track-btn {
+      color: var(--amber);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.2s;
+    }
+
+    .mech-card:hover .track-btn {
+      color: #ffb84d;
+    }
+
+    /* CUSTOM SVG MARKER GLOWS */
+    .user-pulse-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pulse-ring {
+      border: 3px solid var(--accent);
+      border-radius: 30px;
+      height: 32px;
+      width: 32px;
+      position: absolute;
+      animation: expandPulse 1.8s ease-out infinite;
+      opacity: 0;
+    }
+
+    .pulse-dot {
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #fff;
+      box-shadow: 0 0 10px var(--accent);
+      z-index: 10;
+    }
+
+    .mech-pulse-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mech-dot {
+      font-size: 20px;
+      filter: drop-shadow(0 2px 8px var(--amber));
+      animation: floatPin 2s ease-in-out infinite;
+      z-index: 10;
+    }
+
+    /* HUD PANELS ON MAP */
+    .map-hud {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid var(--border);
+      padding: 16px 20px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px var(--shadow);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 200px;
+      pointer-events: none;
+    }
+
+    .map-hud h5 {
+      font-size: 9px;
+      color: var(--subtext);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .map-hud p {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 850px) {
+      .app-container {
+        flex-direction: column-reverse;
+      }
+      .sidebar {
+        width: 100%;
+        height: 340px;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        padding: 16px;
+        gap: 16px;
+      }
+      #map {
+        height: calc(100% - 340px);
+      }
+      .map-hud {
+        bottom: 360px;
+        right: 16px;
+      }
+    }
+
+    /* KEYFRAMES FOR PULSES */
+    @keyframes expandPulse {
+      0% {
+        transform: scale(0.3);
+        opacity: 0;
+      }
+      50% {
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(2.2);
+        opacity: 0;
+      }
+    }
+
+    @keyframes pulseGreen {
+      0% {
+        box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.6);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(48, 209, 88, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(48, 209, 88, 0);
+      }
+    }
+
+    @keyframes pulseBlue {
+      0% {
+        box-shadow: 0 0 0 0 rgba(77, 166, 255, 0.6);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(77, 166, 255, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(77, 166, 255, 0);
+      }
+    }
+
+    @keyframes floatPin {
+      0% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-4px);
+      }
+      100% {
+        transform: translateY(0);
+      }
+    }
+
+    /* Leaflet Darken Filter for premium contrast */
+    .leaflet-tile-pane {
+      filter: brightness(0.65) contrast(1.15) saturate(0.95) invert(1) hue-rotate(180deg);
+    }
+    
+    .leaflet-control-attribution {
+      background: rgba(10, 10, 12, 0.8) !important;
+      color: var(--subtext) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <img src="assets/logo.png" alt="AutoTriage Logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3233/3233966.png'">
+      <div class="brand-title">AUTOTRIAGE</div>
+    </div>
+    <div class="header-badge">Leaflet Live Engine v2.0</div>
+  </header>
+
+  <!-- APPLICATION AREA -->
+  <div class="app-container">
+    
+    <!-- SIDEBAR CONTROLS -->
+    <div class="sidebar">
+      
+      <!-- GEOLOCATION STATS -->
+      <div>
+        <div class="section-title">GPS Telemetry</div>
+        <div class="card geo-card">
+          <div class="geo-status">
+            <div id="gpsDot" class="status-dot loading"></div>
+            <span id="gpsStatus">Detecting GPS Position...</span>
+          </div>
+          <div id="gpsCoords" class="geo-coords">
+            Latitude: --<br>Longitude: --<br>Accuracy: --
+          </div>
+          <button id="relocateBtn" class="btn" onclick="initiateLocationSearch()">
+            🛰️ Scan Satellite Location
+          </button>
+        </div>
+      </div>
+
+      <!-- SIMULATED MECHANICS SECTION -->
+      <div>
+        <div class="section-title">Nearby Field Units (5km Radius)</div>
+        <div id="mechList" class="mech-feed">
+          <p style="color: var(--subtext); font-size: 12px; text-align: center; padding: 20px 0;">
+            Searching satellites for nearby responder units...
+          </p>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- LEAFLET MAP ELEMENT -->
+    <div id="map"></div>
+
+    <!-- FLOATING LIVE HUD OVERLAY -->
+    <div class="map-hud">
+      <h5>Active Dispatch Telemetry</h5>
+      <p id="hudTarget">No unit selected</p>
+      <span id="hudDistance" style="font-size: 11px; color: var(--amber); font-family: 'Space Mono', monospace;">Select a mechanic to track</span>
+    </div>
+
+  </div>
+
+  <!-- Leaflet JavaScript library -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+          crossorigin=""></script>
+
+  <script>
+    // Constants
+    const EARTH_RADIUS_KM = 6371;
+    const RADIUS_LIMIT_KM = 5.0;
+
+    // Globals
+    let leafletMap = null;
+    let userLatLng = null;
+    let userMarker = null;
+    let userAccuracyCircle = null;
+    let mechanicUnits = [];
+    let activePathPolyline = null;
+    let selectedUnitIndex = null;
+    let animationInterval = null;
+
+    // Beautiful Dummy Data Pools
+    const MECH_NAMES = [
+      { name: "Officer Derrick K.", emoji: "🛻", spec: "Engine Specialist" },
+      { name: "Specialist Clara O.", emoji: "🏍️", spec: "Auto Electrician" },
+      { name: "Engineer Marcus G.", emoji: "🔧", spec: "Mobile Repair Unit" }
+    ];
+
+    // ---- GEOLOCATION INITIALIZATION ----
+    function initiateLocationSearch() {
+      const gpsDot = document.getElementById('gpsDot');
+      const gpsStatus = document.getElementById('gpsStatus');
+      const gpsCoords = document.getElementById('gpsCoords');
+      
+      gpsDot.className = "status-dot loading";
+      gpsStatus.textContent = "Acquiring GPS Fix...";
+      
+      if (!navigator.geolocation) {
+        gpsDot.className = "status-dot";
+        gpsStatus.textContent = "GPS Not Supported";
+        alert("Your browser does not support standard Geolocation services.");
+        loadFallbackLocation();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const accuracy = position.coords.accuracy || 10;
+          
+          userLatLng = L.latLng(lat, lng);
+          
+          gpsDot.className = "status-dot active";
+          gpsStatus.textContent = "GPS Link Verified";
+          gpsCoords.innerHTML = `Latitude: ${lat.toFixed(6)}<br>Longitude: ${lng.toFixed(6)}<br>Accuracy fix: ${accuracy.toFixed(1)}m`;
+          
+          setupMapAndCenter(lat, lng, accuracy);
+        },
+        (error) => {
+          console.warn("Geolocation failure, loading fallback coordinates", error);
+          gpsDot.className = "status-dot";
+          gpsStatus.textContent = "Offline (using fallback)";
+          loadFallbackLocation();
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    // Load London Center fallback if Geolocation is denied/offline
+    function loadFallbackLocation() {
+      const fallbackLat = 51.5074;
+      const fallbackLng = -0.1278;
+      userLatLng = L.latLng(fallbackLat, fallbackLng);
+      
+      const gpsCoords = document.getElementById('gpsCoords');
+      gpsCoords.innerHTML = `Latitude: ${fallbackLat.toFixed(6)} (Fallback)<br>Longitude: ${fallbackLng.toFixed(6)} (Fallback)<br>Accuracy fix: Estimated`;
+      
+      setupMapAndCenter(fallbackLat, fallbackLng, 300);
+    }
+
+    // ---- MAP SETUP ----
+    function setupMapAndCenter(lat, lng, accuracy) {
+      // 1. Initialize Leaflet Map
+      if (!leafletMap) {
+        leafletMap = L.map('map', {
+          zoomControl: true,
+          fadeAnimation: true
+        });
+
+        // 2. Set Free 'Esri World Street Map' Tiles
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+          attribution: 'Tiles &copy; Esri &mdash; Sources: Esri, DeLorme, USGS, NPS'
+        }).addTo(leafletMap);
+      }
+
+      leafletMap.setView([lat, lng], 14);
+
+      // 3. Clear existing markers
+      if (userMarker) leafletMap.removeLayer(userMarker);
+      if (userAccuracyCircle) leafletMap.removeLayer(userAccuracyCircle);
+
+      // 4. Create custom glowing blue User Marker
+      const userIcon = L.divIcon({
+        className: 'user-pulse-marker',
+        html: '<div class="pulse-ring"></div><div class="pulse-dot"></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+
+      userMarker = L.marker([lat, lng], { icon: userIcon })
+        .addTo(leafletMap)
+        .bindPopup("<b>Your Location</b><br>AutoTriage Breakdown Pin")
+        .openPopup();
+
+      // 5. Accuracy boundary circle
+      userAccuracyCircle = L.circle([lat, lng], {
+        radius: Math.min(accuracy, 1000), // Max accuracy radius visual of 1km
+        color: '#4da6ff',
+        fillColor: '#4da6ff',
+        fillOpacity: 0.1,
+        weight: 1.5
+      }).addTo(leafletMap);
+
+      // 6. Generate 3 dummy Mechanic Markers
+      spawnMechanicResponders(lat, lng);
+    }
+
+    // ---- SPAWN RESPONDERS WITHIN 5KM RADIUS ----
+    function spawnMechanicResponders(centerLat, centerLng) {
+      // Clear previous mechanic markers & paths
+      mechanicUnits.forEach(m => {
+        if (m.marker) leafletMap.removeLayer(m.marker);
+      });
+      if (activePathPolyline) {
+        leafletMap.removeLayer(activePathPolyline);
+        activePathPolyline = null;
+      }
+      
+      mechanicUnits = [];
+
+      for (let i = 0; i < 3; i++) {
+        // Precise Geodesic math to spawn responders uniformly within 5km radius
+        const randomCoord = generatePointInRadius(centerLat, centerLng, RADIUS_LIMIT_KM);
+        const distance = calculateHaversineDistance(centerLat, centerLng, randomCoord.lat, randomCoord.lng);
+        const eta = Math.ceil(distance * 3 + 2); // Simulates 3 mins per km driving speed
+
+        // Custom Amber Wrench pin marker icon
+        const mechIcon = L.divIcon({
+          className: 'mech-pulse-marker',
+          html: `<div class="mech-dot">${MECH_NAMES[i].emoji}</div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+
+        const marker = L.marker([randomCoord.lat, randomCoord.lng], { icon: mechIcon })
+          .addTo(leafletMap);
+
+        const unit = {
+          name: MECH_NAMES[i].name,
+          emoji: MECH_NAMES[i].emoji,
+          spec: MECH_NAMES[i].spec,
+          lat: randomCoord.lat,
+          lng: randomCoord.lng,
+          startLat: randomCoord.lat,
+          startLng: randomCoord.lng,
+          distance: distance,
+          eta: eta,
+          marker: marker
+        };
+
+        marker.bindPopup(`
+          <div style="font-family:'Outfit', sans-serif; color: #111;">
+            <b style="font-size:14px;">${unit.name}</b><br>
+            <span style="font-size:11px;color:#888;">${unit.spec}</span><br>
+            <span style="font-size:12px;color:#ff9f0a;font-weight:bold;">ETA: ${unit.eta} min (${unit.distance.toFixed(2)} km)</span>
+          </div>
+        `);
+
+        mechanicUnits.push(unit);
+      }
+
+      renderMechanicSidebar();
+    }
+
+    // Precise coordinates random displacement generator
+    function generatePointInRadius(lat, lng, radiusKm) {
+      // Random angle (theta) and distance proportion (sqrt for even distribution)
+      const theta = Math.random() * 2 * Math.PI;
+      const r = Math.sqrt(Math.random()) * radiusKm;
+      
+      const latOffset = (r * Math.cos(theta)) / 111.32;
+      const lngOffset = (r * Math.sin(theta)) / (111.32 * Math.cos(lat * Math.PI / 180));
+      
+      return {
+        lat: lat + latOffset,
+        lng: lng + lngOffset
+      };
+    }
+
+    // Precise Haversine Formula for distance on spherical earth
+    function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+                
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return EARTH_RADIUS_KM * c;
+    }
+
+    // ---- RENDER MECHANICS SIDEBAR ----
+    function renderMechanicSidebar() {
+      const feed = document.getElementById('mechList');
+      feed.innerHTML = "";
+
+      mechanicUnits.forEach((unit, idx) => {
+        const card = document.createElement('div');
+        card.className = `card mech-card ${selectedUnitIndex === idx ? 'selected' : ''}`;
+        card.onclick = () => selectMechanicUnit(idx);
+
+        card.innerHTML = `
+          <div class="mech-header">
+            <div class="mech-info">
+              <div class="mech-avatar">${unit.emoji}</div>
+              <div class="mech-meta">
+                <h4>${unit.name}</h4>
+                <p>${unit.spec}</p>
+              </div>
+            </div>
+            <span class="mech-badge">ACTIVE</span>
+          </div>
+          <div class="mech-footer">
+            <span class="mech-dist">📍 ${unit.distance.toFixed(2)} km away</span>
+            <span class="track-btn">Track Dispatch →</span>
+          </div>
+        `;
+        feed.appendChild(card);
+      });
+    }
+
+    // ---- INTERACTIVE ROUTE SELECTION & LIVE DISPATCH ----
+    function selectMechanicUnit(index) {
+      selectedUnitIndex = index;
+      renderMechanicSidebar();
+
+      const unit = mechanicUnits[index];
+      
+      // Update floating HUD panel details
+      document.getElementById('hudTarget').textContent = unit.name;
+      document.getElementById('hudDistance').textContent = `Distance: ${unit.distance.toFixed(2)} km | ETA: ${unit.eta} min`;
+
+      // Center map on path midpoint bounds
+      const bounds = L.latLngBounds([userLatLng, L.latLng(unit.lat, unit.lng)]);
+      leafletMap.fitBounds(bounds, { padding: [50, 50] });
+
+      // Redraw active dashed route line (Ants Marching route style)
+      if (activePathPolyline) leafletMap.removeLayer(activePathPolyline);
+      
+      activePathPolyline = L.polyline([L.latLng(unit.lat, unit.lng), userLatLng], {
+        color: '#ff9f0a',
+        weight: 4,
+        dashArray: '8, 12',
+        opacity: 0.85
+      }).addTo(leafletMap);
+
+      // Start dispatch driving animation (Simulated Movement towards User)
+      startDispatchAnimation(index);
+    }
+
+    // Animates the dispatch coordinate steps towards the User breakdown pin
+    function startDispatchAnimation(index) {
+      if (animationInterval !== null) {
+        clearInterval(animationInterval);
+      }
+
+      let currentStep = 0;
+      const totalSteps = 40; // Total steps for movement track
+      const unit = mechanicUnits[index];
+
+      // Back to original simulated workshop start position before moving
+      unit.lat = unit.startLat;
+      unit.lng = unit.startLng;
+      unit.marker.setLatLng([unit.lat, unit.lng]);
+
+      animationInterval = setInterval(() => {
+        currentStep++;
+        if (currentStep > totalSteps) {
+          clearInterval(animationInterval);
+          animationInterval = null;
+          
+          document.getElementById('hudDistance').innerHTML = `🏁 Unit Arrived at Location!`;
+          unit.distance = 0;
+          unit.eta = 0;
+          unit.marker.bindPopup(`<b>${unit.name}</b><br><span style="color:#30d158;font-weight:bold;">Arrived at Breakdown location</span>`).openPopup();
+          renderMechanicSidebar();
+          return;
+        }
+
+        // Interpolate lat/lng coordinate fractions
+        const progress = currentStep / totalSteps;
+        const currentLat = unit.startLat + (userLatLng.lat - unit.startLat) * progress;
+        const currentLng = unit.startLng + (userLatLng.lng - unit.startLng) * progress;
+
+        // Reposition marker and redraw polyline path
+        unit.lat = currentLat;
+        unit.lng = currentLng;
+        unit.marker.setLatLng([currentLat, currentLng]);
+
+        if (activePathPolyline) {
+          activePathPolyline.setLatLngs([L.latLng(currentLat, currentLng), userLatLng]);
+        }
+
+        // Recompute remaining telemetries
+        const remainingDist = calculateHaversineDistance(userLatLng.lat, userLatLng.lng, currentLat, currentLng);
+        const remainingEta = Math.ceil(remainingDist * 3);
+
+        unit.distance = remainingDist;
+        unit.eta = remainingEta;
+
+        document.getElementById('hudDistance').textContent = `En Route: ${remainingDist.toFixed(2)} km | ETA: ${remainingEta} min`;
+        renderMechanicSidebar();
+      }, 500); // Step every 500ms
+    }
+
+    // Auto-Trigger location search on page load
+    window.addEventListener('load', initiateLocationSearch);
+  </script>
+</body>
+</html>

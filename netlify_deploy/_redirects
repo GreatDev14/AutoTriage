@@ -1,0 +1,15 @@
+/mechanics    /mechanics.html   200
+# Netlify redirects configuration
+
+# 1. Force redirect all standalone app files to homepage on Netlify production
+/app.html  /  302!
+/simple.html  /  302!
+/app  /  302!
+/simple  /  302!
+/auto-triage-explainer.html  /  302!
+
+# 2. Proxy Firebase Auth handler through Netlify to bypass ISP blocks on firebaseapp.com
+/__/auth/*  https://autotriageapp.firebaseapp.com/__/auth/:splat  200
+
+# 3. SPA fallback routing
+/*  /index.html  200

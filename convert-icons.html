@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html><head><title>Icon Converter</title></head>
+<body style="background:#111;color:#fff;font-family:sans-serif;padding:40px;text-align:center;">
+<h2>AutoTriage Icon Converter</h2>
+<p>Click the buttons below to download proper PNG icons.</p>
+
+<canvas id="c192" width="192" height="192" style="border:1px solid #333;margin:10px;"></canvas>
+<canvas id="c512" width="512" height="512" style="border:1px solid #333;margin:10px;"></canvas>
+<br>
+<a id="dl192" download="icon-192.png" style="color:#0f0;margin:10px;display:inline-block;">⬇ Download 192x192</a>
+<a id="dl512" download="icon-512.png" style="color:#0f0;margin:10px;display:inline-block;">⬇ Download 512x512</a>
+<p id="status" style="color:yellow;">Loading source image...</p>
+
+<script>
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.onload = function() {
+  // Draw 192
+  const c1 = document.getElementById('c192');
+  const ctx1 = c1.getContext('2d');
+  ctx1.drawImage(img, 0, 0, 192, 192);
+  document.getElementById('dl192').href = c1.toDataURL('image/png');
+  
+  // Draw 512
+  const c2 = document.getElementById('c512');
+  const ctx2 = c2.getContext('2d');
+  ctx2.drawImage(img, 0, 0, 512, 512);
+  document.getElementById('dl512').href = c2.toDataURL('image/png');
+  
+  document.getElementById('status').textContent = '✅ Ready! Click the green links to download.';
+  document.getElementById('status').style.color = '#0f0';
+  
+  // Auto-save via fetch for local use
+  saveBlob(c1, 'icon-192.png');
+  saveBlob(c2, 'icon-512.png');
+};
+img.onerror = function() {
+  document.getElementById('status').textContent = '❌ Failed to load logo.png';
+  document.getElementById('status').style.color = 'red';
+};
+img.src = 'assets/logo.png';
+
+function saveBlob(canvas, name) {
+  canvas.toBlob(function(blob) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    // Don't auto-click, just make links ready
+  }, 'image/png');
+}
+</script>
+</body>
+</html>

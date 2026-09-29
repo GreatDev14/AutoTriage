@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    // Storage Safety Guard: Redefine localStorage & sessionStorage to in-memory mocks if blocked (e.g. file:/// protocol)
+    (function() {
+      function createMockStorage() {
+        var mockStorage = {};
+        return {
+          getItem: function(k) { return mockStorage[k] !== undefined ? mockStorage[k] : null; },
+          setItem: function(k, v) { mockStorage[k] = String(v); },
+          removeItem: function(k) { delete mockStorage[k]; },
+          clear: function() { for (var k in mockStorage) delete mockStorage[k]; },
+          key: function(i) { return Object.keys(mockStorage)[i] || null; },
+          get length() { return Object.keys(mockStorage).length; }
+        };
+      }
+      try {
+        var testKey = '__test_storage_safety__';
+        window.localStorage.setItem(testKey, '1');
+        window.localStorage.removeItem(testKey);
+      } catch (e) {
+        console.warn("localStorage is blocked or inaccessible. Injecting memory-based fallback mock.");
+        try {
+          Object.defineProperty(window, 'localStorage', { value: createMockStorage(), writable: true, configurable: true });
+        } catch (err) {
+          window.localStorage = createMockStorage();
+        }
+      }
+      try {
+        var testKey = '__test_storage_safety__';
+        window.sessionStorage.setItem(testKey, '1');
+        window.sessionStorage.removeItem(testKey);
+      } catch (e) {
+        console.warn("sessionStorage is blocked or inaccessible. Injecting memory-based fallback mock.");
+        try {
+          Object.defineProperty(window, 'sessionStorage', { value: createMockStorage(), writable: true, configurable: true });
+        } catch (err) {
+          window.sessionStorage = createMockStorage();
+        }
+      }
+      
+      // Fetch scheme mapper for local file preview redirection to Node backend
+      var originalFetch = window.fetch;
+      window.fetch = function(input, init) {
+        if (typeof input === 'string' && input.startsWith('/api/')) {
+          var baseUrl = (window.location.protocol === 'file:') ? 'http://localhost:8080' : '';
+          if (baseUrl) {
+            console.log('[API Redirect] Routing ' + input + ' -> ' + baseUrl + input);
+            return originalFetch(baseUrl + input, init);
+          }
+        }
+        return originalFetch(input, init);
+      };
+    })();
+  </script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Auto Triage — AI Vehicle Intelligence</title>
+  <link rel="stylesheet" href="dist/autotriage.css?v=1.35" />
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
+
+
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/desktop-port.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+  <script src="js/telemetry.js"></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/ai-diagnosis.js" defer></script>
+  <script src="js/parts-db.js" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['Space Mono', 'monospace'], bebas: ['Bebas Neue', 'sans-serif'] },
+          colors: { panel: '#1c1c1e', bg: '#0f0f11', bordercol: '#2c2c2e' },
+          animation: {
+            'scanline': 'scanline 4s linear infinite',
+            'shimmer': 'shimmer 2.5s ease-in-out infinite',
+          },
+          keyframes: {
+            scanline: {
+              '0%': { transform: 'translateY(-100%)' },
+              '100%': { transform: 'translateY(100%)' },
+            },
+            shimmer: {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(200%)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Responsive App Scaling */
+    html { font-size: 95%; } /* Default for large desktop monitors */
+    @media (max-width: 1600px) { html { font-size: 85%; } } /* Shrink for medium laptops */
+    @media (max-width: 1366px) { html { font-size: 75%; } } /* Shrink for standard laptops */
+    @media (max-width: 1024px) { html { font-size: 65%; } } /* Shrink for small screens/tablets */
+    
+    body { background-color: #0f0f11; color: var(--fg); overflow: hidden; }
+    .tab-content { display: none !important; height: 100%; flex-direction: column; overflow: hidden; }
+    .tab-content.active { display: flex !important; }
+    
+    .custom-scroll { overflow-y: auto; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #2c2c2e; border-radius: 4px; }
+    
+    .panel {
+      background-color: #1c1c1e;
+      border: 1px solid #2c2c2e;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .sidebar-icon {
+      color: #6c707a;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .sidebar-icon:hover { 
+      color: var(--fg); 
+      filter: drop-shadow(0 0 8px rgba(255,255,255,0.4));
+    }
+    .sidebar-icon.active { 
+      color: var(--fg); 
+      filter: drop-shadow(0 0 10px rgba(255,51,51,0.6));
+    }
+    .sidebar-icon.active::before {
+      content: ''; position: absolute; left: -16px; top: 50%; transform: translateY(-50%);
+      height: 32px; width: 4px; background-color: var(--accent); border-radius: 0 4px 4px 0;
+      box-shadow: 0 0 15px rgba(255,51,51,0.8), 0 0 30px rgba(255,51,51,0.4);
+    }
+  
+    .ring-glow-green { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4)); }
+    .ring-glow-orange { filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.4)); }
+    
+    .bg-gradient-radial {
+      background: radial-gradient(circle at center, rgba(255,255,255,0.03) 0%, transparent 70%);
+    } 
+
+    @keyframes orbBreathe {
+      0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.6; }
+      50% { transform: scale(1.15) translate(3%, 4%); opacity: 0.9; }
+    }
+    .bg-orb-1 { animation: orbBreathe 16s infinite ease-in-out alternate; }
+    .bg-orb-2 { animation: orbBreathe 20s infinite ease-in-out alternate-reverse; }
+
+    /* Override mobile variables for desktop context */
+    :root {
+      --bg: #0f0f11;
+      --fg: var(--fg);
+      --glass: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.1);
+      --accent: var(--accent);
+      --mid: #1c1c1e;
+      --subtext: #8e93a0;
+      --shadow: rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex text-sm relative">
+
+  <!-- Background Orbs -->
+  <div class="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none z-0 bg-orb-1"></div>
+  <div class="absolute bottom-[-10%] right-[-10%] w-[35%] h-[35%] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none z-0 bg-orb-2"></div>
+
+  <!-- THIN SIDEBAR (HIDDEN ON MOBILE) -->
+  <aside class="hidden md:flex w-[70px] border-r border-bordercol flex-col items-center py-6 shrink-0 bg-panel relative z-20">
+    <div class="text-white mb-8">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+    </div>
+    
+    <nav class="flex flex-col items-center gap-6 w-full">
+      <button onclick="app.switchTab('dashboard')" id="nav-dashboard" class="sidebar-icon active w-full flex justify-center py-2" title="Dashboard">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      </button>
+      <button onclick="app.switchTab('diagnosis')" id="nav-diagnosis" class="sidebar-icon w-full flex justify-center py-2" title="AI Diagnosis">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+      </button>
+      <button onclick="app.switchTab('mechanics')" id="nav-mechanics" class="sidebar-icon w-full flex justify-center py-2" title="Mechanics">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+      </button>
+      <button onclick="app.switchTab('rides')" id="nav-rides" class="sidebar-icon w-full flex justify-center py-2" title="Get a Ride">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+      </button>
+      <button onclick="app.switchTab('garage')" id="nav-garage" class="sidebar-icon w-full flex justify-center py-2" title="Garage">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+      </button>
+      <button onclick="app.switchTab('parts')" id="nav-parts" class="sidebar-icon w-full flex justify-center py-2" title="Parts Prices">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+      </button>
+      <button onclick="app.switchTab('emergency')" id="nav-emergency" class="sidebar-icon w-full flex justify-center py-2 text-red-500/80 hover:text-red-500 hover:drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Emergency">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </button>
+    </nav>
+    
+    <div class="mt-auto sidebar-icon cursor-pointer" onclick="app.openProfileDrawer()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col min-w-0 relative z-10">
+    
+    <!-- TOP HEADER -->
+    <header class="h-[60px] border-b border-bordercol flex items-center justify-between px-6 shrink-0 bg-panel z-50">
+      <div class="flex items-center gap-3">
+        <div class="h-logo" style="font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:3px; color: var(--fg); text-decoration: none; display: flex; align-items: center; gap: 10px;">
+          <img src="assets/logo-transparent.png" alt="Logo" style="height:32px; width:32px; object-fit:contain; filter:drop-shadow(0 0 8px rgba(255,51,51,0.4));">
+          AUTO<span style="opacity: 0.3;">TRIAGE</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-2 text-[11px] text-[#8e93a0] font-medium bg-white/5 px-3 py-1.5 rounded-full border border-white/5 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" id="gps-indicator"></span> 
+          <span id="gps-text">SYS_GPS: ACQUIRING...</span>
+        </div>
+        <button id="headerThemeToggle" onclick="(function(){document.documentElement.classList.toggle('light');const b=document.getElementById('headerThemeToggle');b.textContent=document.documentElement.classList.contains('light')?'☀️':'🌙';})()" title="Toggle Theme" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);font-size:14px;cursor:pointer;height:32px;width:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all 0.2s;">🌙</button>
+        <button class="login-trigger-btn" onclick="Auth.toggle()" style="background:transparent; border:1px solid #2c2c2e; color:white; padding:8px 16px; border-radius:8px; font-size:10px; cursor:pointer; letter-spacing:1px; font-family:'Space Mono',monospace; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">LOGIN</button>
+        <button onclick="app.switchTab('diagnosis')" class="bg-white text-black px-4 py-2 rounded-full text-[11px] font-bold hover:bg-gray-200 transition-colors flex items-center gap-2 shadow-sm font-mono tracking-widest uppercase">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          Run Scan
+        </button>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-hidden relative">
+
+      <!-- 1. DASHBOARD TAB -->
+      <section id="tab-dashboard" class="tab-content active pt-4 pb-4 px-6 md:px-8 custom-scroll">
+        <div class="max-w-5xl mx-auto w-full flex flex-col gap-4">
+          <div>
+            <h1 class="font-bebas text-3xl md:text-4xl tracking-widest text-white leading-none">VEHICLE INTELLIGENCE</h1>
+            <p class="text-[10px] text-zinc-500 font-mono mt-1 uppercase tracking-wider">SECURE TELEMETRY COCKPIT & OPERATIONS</p>
+          </div>
+
+          <!-- MAIN BUTTONS - PREMIUM TILES -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button class="main-btn hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(255,255,255,0.06)] border-white/10 w-full" onclick="app.switchTab('diagnosis')">
+              <div class="mb-icon-wrap bg-blue-500/10 border-blue-500/30 text-blue-400">🧠</div>
+              <div class="mb-bottom mt-3">
+                <div class="mb-title font-bebas text-3xl">DIAGNOSE<br>MY CAR</div>
+                <div class="mb-desc font-mono">Describe problem · AI analysis · Solutions</div>
+              </div>
+            </button>
+            <button class="main-btn hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(255,255,255,0.06)] border-white/10 w-full" onclick="app.switchTab('mechanics')">
+              <div class="mb-icon-wrap bg-orange-500/10 border-orange-500/30 text-orange-400">🔧</div>
+              <div class="mb-bottom mt-3">
+                <div class="mb-title font-bebas text-3xl">FIND A<br>MECHANIC</div>
+                <div class="mb-desc font-mono">Mechanics near you · Call directly</div>
+              </div>
+            </button>
+            <button class="main-btn hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(255,255,255,0.06)] border-white/10 w-full" onclick="app.switchTab('rides')">
+              <div class="mb-icon-wrap bg-purple-500/10 border-purple-500/30 text-purple-400">🚗</div>
+              <div class="mb-bottom mt-3">
+                <div class="mb-title font-bebas text-3xl">GET A<br>RIDE</div>
+                <div class="mb-desc font-mono">Uber · Lyft · Bolt · DiDi · Grab · InDrive</div>
+              </div>
+            </button>
+            <button class="main-btn emergency-btn hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(230,57,70,0.2)] w-full" onclick="app.switchTab('emergency')">
+              <div class="mb-icon-wrap">🚨</div>
+              <div class="mb-bottom mt-3">
+                <div class="mb-title font-bebas text-3xl text-red-500">EMERGENCY</div>
+                <div class="mb-desc font-mono text-red-200">Police 911 · 112 · Rescue 999</div>
+              </div>
+            </button>
+          </div>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+             <button class="panel p-4 hover:bg-white/5 transition border-white/10 text-left flex items-center gap-3 shadow-xl" onclick="app.switchTab('garage')">
+                <div class="w-8 h-8 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center text-sm shrink-0">🛠️</div>
+                <div class="min-w-0">
+                  <div class="font-bebas text-lg tracking-wider text-white truncate">MY GARAGE</div>
+                  <div class="text-[9px] font-mono text-[#8e93a0] truncate">Track Maintenance</div>
+                </div>
+             </button>
+             <button class="panel p-4 hover:bg-white/5 transition border-white/10 text-left flex items-center gap-3 shadow-xl" onclick="app.switchTab('history')">
+                <div class="w-8 h-8 bg-white/10 text-white rounded-full flex items-center justify-center text-sm shrink-0">🕒</div>
+                <div class="min-w-0">
+                  <div class="font-bebas text-lg tracking-wider text-white truncate">HISTORY</div>
+                  <div class="text-[9px] font-mono text-[#8e93a0] truncate">Past AI Diagnoses</div>
+                </div>
+             </button>
+             <button class="panel p-4 hover:bg-white/5 transition border-white/10 text-left flex items-center gap-3 shadow-xl" onclick="app.switchTab('parts')">
+                <div class="w-8 h-8 bg-yellow-500/10 text-yellow-400 rounded-full flex items-center justify-center text-sm shrink-0">💰</div>
+                <div class="min-w-0">
+                  <div class="font-bebas text-lg tracking-wider text-white truncate">PARTS PRICE</div>
+                  <div class="text-[9px] font-mono text-[#8e93a0] truncate">Estimated Costs</div>
+                </div>
+             </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. AI DIAGNOSTICS TAB -->
+      <section id="tab-diagnosis" class="tab-content pt-4 pb-4 px-6 md:px-8 custom-scroll">
+        <div class="max-w-4xl mx-auto w-full h-full flex flex-col">
+          <!-- DYNAMIC VEHICLE LOCK-ON HEADER -->
+          <div id="diagTargetBanner" class="mb-3 p-3 rounded-xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 flex items-center gap-3">
+            <div class="text-xl animate-pulse">📡</div>
+            <div class="flex-1">
+              <div class="text-[9px] text-blue-400 font-mono font-bold tracking-widest uppercase">Target Vehicle Telemetry Sync</div>
+              <div class="text-[12px] font-bold text-white mt-0.5" id="diag-target-badge">Universal Car Profiling</div>
+            </div>
+            <span class="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider">OBD-II Active</span>
+          </div>
+
+          <div class="vtype-row mb-3 flex gap-2 overflow-x-auto pb-1">
+            <button class="vt on px-4 py-2 bg-blue-600 border-none rounded-lg text-white font-mono font-bold tracking-wider text-xs" onclick="app.setVt(this,'Car')">🚗 Car</button>
+            <button class="vt px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#8e93a0] font-mono font-bold tracking-wider hover:bg-white/10 text-xs" onclick="app.setVt(this,'SUV')">🚙 SUV</button>
+            <button class="vt px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#8e93a0] font-mono font-bold tracking-wider hover:bg-white/10 text-xs" onclick="app.setVt(this,'Truck')">🛻 Truck</button>
+            <button class="vt px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[#8e93a0] font-mono font-bold tracking-wider hover:bg-white/10 text-xs" onclick="app.setVt(this,'Motorcycle')">🏍 Moto</button>
+          </div>
+
+          <!-- Language selector (matches mobile app) -->
+          <div class="flex items-center justify-between mb-3">
+            <select id="langSelect" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--fg);padding:6px 10px;border-radius:8px;font-family:'Space Mono',monospace;font-size:10px;outline:none;cursor:pointer;">
+              <option value="en">🌐 English</option>
+              <option value="yo">Yoruba</option>
+              <option value="ha">Hausa</option>
+              <option value="ig">Igbo</option>
+              <option value="fr">French</option>
+              <option value="ar">Arabic</option>
+            </select>
+            <span style="font-size:9px;color:rgba(255,255,255,0.3);font-family:'Space Mono',monospace;">AI Auto-translates responses</span>
+          </div>
+          
+          <div class="flex gap-4 flex-1 min-h-[380px]">
+            <div class="flex-1 flex flex-col gap-3">
+              <div class="panel flex-1 flex flex-col p-4 shadow-xl relative group border-white/10">
+                <textarea id="diag-input" class="w-full flex-1 bg-transparent text-white text-[13px] resize-none leading-relaxed outline-none font-mono" placeholder="Describe your vehicle problem in detail...&#10;&#10;e.g. My car is making a grinding noise when I press the brake pedal..."></textarea>
+                <div class="absolute bottom-4 right-4 flex gap-1.5">
+                  <button id="micBtn" onclick="app.toggleVoiceLog ? app.toggleVoiceLog() : void 0" title="Voice Dictation" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition text-sm">🎙️</button>
+                  <button id="stethBtn" onclick="app.openStethoscope ? app.openStethoscope() : void 0" title="Stethoscope Engine Scan" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition text-sm">🩺</button>
+                  <button onclick="document.getElementById('diagPhotoInput').click()" title="Attach Photo" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition text-sm">📸</button>
+                  <input type="file" id="diagPhotoInput" accept="image/*" style="display:none;" onchange="(function(i){const img=document.getElementById('diagImgPreview');if(i.files[0]){img.src=URL.createObjectURL(i.files[0]);img.style.display='block';}})(this)"/>
+                  <img id="diagImgPreview" style="display:none;width:32px;height:32px;border-radius:6px;object-fit:cover;border:1px solid rgba(0,208,132,0.5);" />
+                </div>
+              </div>
+
+              <!-- Desktop Stethoscope Visualizer Overlay Dashboard -->
+              <div id="desktopStethoscopeOverlay" class="panel p-4 shadow-xl border-white/10" style="display:none; background:rgba(20,21,23,0.85); backdrop-filter:blur(20px);">
+                <div class="flex justify-between items-center mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse" id="deskStethStatusDot"></span>
+                    <span class="font-mono text-[10px] font-bold text-white tracking-wider" id="deskStethStatusText">STETHOSCOPE DIAGNOSTIC SCANNER</span>
+                  </div>
+                  <button onclick="app.closeStethoscope()" class="text-white/40 hover:text-white text-xs">✕</button>
+                </div>
+                
+                <!-- Audio Waveform Canvas -->
+                <canvas id="deskStethCanvas" class="w-full h-[90px] bg-black/40 rounded-xl border border-white/5 mb-3" style="display:block;"></canvas>
+                
+                <!-- Frequency Telemetry Stats -->
+                <div class="grid grid-cols-2 gap-2 mb-3 font-mono text-[10px] text-white/60">
+                  <div class="p-2 bg-white/[0.02] rounded-lg border border-white/5">Peak Freq: <span id="deskStethPeakVal" class="text-emerald-400 font-bold">-- Hz</span></div>
+                  <div class="p-2 bg-white/[0.02] rounded-lg border border-white/5">Engine Vibe: <span id="deskStethVibeVal" class="text-orange-400 font-bold">-- CPM</span></div>
+                </div>
+                
+                <!-- Test Simulator Panel -->
+                <div class="mb-3 p-3 bg-white/[0.02] rounded-xl border border-white/5">
+                  <div class="text-[8px] font-mono mb-2 text-white/40 letter-spacing:1px; font-weight:bold;">TEST DRIVE SCAN SIMULATOR:</div>
+                  <div class="grid grid-cols-4 gap-1.5">
+                    <button id="deskSimBtn-healthy" onclick="app.selectStethSim('healthy')" class="text-[8px] py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono font-bold cursor-pointer transition-all duration-200">🟢 Normal</button>
+                    <button id="deskSimBtn-belt" onclick="app.selectStethSim('belt')" class="text-[8px] py-1.5 rounded bg-white/[0.03] border border-white/[0.08] text-white/50 font-mono font-bold cursor-pointer transition-all duration-200">🔴 Belt</button>
+                    <button id="deskSimBtn-valve" onclick="app.selectStethSim('valve')" class="text-[8px] py-1.5 rounded bg-white/[0.03] border border-white/[0.08] text-white/50 font-mono font-bold cursor-pointer transition-all duration-200">🟡 Valve</button>
+                    <button id="deskSimBtn-exhaust" onclick="app.selectStethSim('exhaust')" class="text-[8px] py-1.5 rounded bg-white/[0.03] border border-white/[0.08] text-white/50 font-mono font-bold cursor-pointer transition-all duration-200">💨 Exhaust</button>
+                  </div>
+                </div>
+                
+                <!-- Action Controls -->
+                <div class="flex gap-2">
+                  <button id="deskStethActionBtn" onclick="app.toggleStethScan()" style="flex:2;" class="bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold py-2.5 rounded-lg border-none cursor-pointer transition shadow-[0_4px_12px_rgba(37,99,235,0.3)] text-[10px] tracking-wider text-center flex items-center justify-center gap-1.5">🎙️ START ENGINE SCAN</button>
+                  <button onclick="app.closeStethoscope()" style="flex:1;" class="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-mono font-bold py-2.5 rounded-lg cursor-pointer text-[10px]">CANCEL</button>
+                </div>
+                
+                <!-- Countdown Progress Bar -->
+                <div id="deskStethProgressWrap" class="hidden w-full h-1 bg-white/10 rounded-full mt-3 overflow-hidden relative">
+                  <div id="deskStethProgressBar" class="w-0 h-full bg-gradient-to-r from-emerald-500 via-orange-500 to-red-500 transition-all duration-100 linear"></div>
+                </div>
+              </div>
+
+              <div class="flex gap-3 w-full">
+                <button onclick="app.runDiagnosis()" class="flex-2 bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-bold font-mono tracking-widest text-[12px] shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all flex items-center justify-center gap-1.5 w-full">
+                  RUN AI DIAGNOSIS →
+                </button>
+                <button onclick="app.openManualDiagnosisModal()" class="flex-1 bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-400 hover:text-white px-4 rounded-xl font-bold font-mono tracking-wider text-[10px] transition-all flex items-center justify-center gap-1.5 whitespace-nowrap">
+                  📝 MANUALLY WRITE REPORT
+                </button>
+              </div>
+            </div>
+            
+            <div class="flex-1 panel p-4 overflow-y-auto custom-scroll text-[13px] shadow-xl bg-gradient-to-b from-[#1c1c1e] to-[#141517] border-white/10" id="diag-results">
+              <div class="h-full flex flex-col items-center justify-center text-[#6c707a]">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mb-3 opacity-50"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                <p class="text-center font-mono text-[10px] uppercase tracking-widest fill-text">Waiting for telemetry data...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. MECHANICS TAB -->
+      <section id="tab-mechanics" class="tab-content pt-4 pb-4 px-6 md:px-8 custom-scroll relative">
+        <div class="max-w-4xl mx-auto w-full">
+          <input type="text" id="mechQ" class="w-full mb-3 font-mono bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/30 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 transition-all duration-300 outline-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] shrink-0 text-xs" placeholder="Search by name, area or specialization..." oninput="app.filterMechs()"/>
+          
+          <div class="spec-row mb-3 flex gap-2 overflow-x-auto pb-1 shrink-0">
+            <button class="sf on px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 border border-transparent text-white font-mono text-[10px] font-bold rounded-lg shadow-[0_0_15px_rgba(255,51,51,0.3)] transition-all duration-300 cursor-pointer whitespace-nowrap" onclick="app.filterSpec2(this,'All')">All</button>
+            <button class="sf px-4 py-2 bg-white/5 border border-white/10 text-white/60 font-mono text-[10px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 cursor-pointer whitespace-nowrap" onclick="app.filterSpec2(this,'General Mechanic')">General</button>
+            <button class="sf px-4 py-2 bg-white/5 border border-white/10 text-white/60 font-mono text-[10px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 cursor-pointer whitespace-nowrap" onclick="app.filterSpec2(this,'Engine Specialist')">Engine</button>
+            <button class="sf px-4 py-2 bg-white/5 border border-white/10 text-white/60 font-mono text-[10px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 cursor-pointer whitespace-nowrap" onclick="app.filterSpec2(this,'Auto Electrician')">Electric</button>
+            <button class="sf px-4 py-2 bg-white/5 border border-white/10 text-white/60 font-mono text-[10px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 cursor-pointer whitespace-nowrap" onclick="app.filterSpec2(this,'Brake Specialist')">Brakes</button>
+            <button class="sf px-4 py-2 bg-white/5 border border-white/10 text-white/60 font-mono text-[10px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-all duration-300 cursor-pointer whitespace-nowrap" onclick="app.filterSpec2(this,'AC Specialist')">AC</button>
+          </div>
+          
+          <div id="aiRecommendationBanner" style="display:none;" class="mb-3 p-3 rounded-xl bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 flex items-center gap-3">
+            <div class="text-xl">🤖</div>
+            <div class="flex-1">
+              <div class="text-[9px] text-orange-400 font-mono font-bold tracking-widest uppercase">AI Recommendation</div>
+              <div class="text-[12px] font-bold text-white mt-0.5" id="aiRecommendationText">Brake Specialist (Priority Sorted to Top)</div>
+            </div>
+            <button onclick="document.getElementById('aiRecommendationBanner').style.display='none'" class="text-white/50 hover:text-white">✕</button>
+          </div>
+          
+          <!-- This will hold the .mech-card-s elements generated in JS -->
+          <div id="mechList" class="grid grid-cols-2 gap-2 md:gap-4"></div>
+        </div>
+      </section>
+
+      <!-- 4. RIDES TAB (DUAL-PANE COMMAND CENTER) -->
+      <section id="tab-rides" class="tab-content h-full relative" style="padding:0; overflow:hidden; background:var(--bg);">
+        
+        <!-- VIP SHOWCASE (INITIAL STATE) -->
+        <style>
+          @keyframes vipFloatIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+          @keyframes shimmerBorder {
+            0%,100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+          .pcard {
+            position:relative; background:linear-gradient(135deg,#0d0d11 0%,#111117 100%);
+            border:1px solid rgba(255,255,255,0.07); border-radius:18px;
+            padding:18px 12px 14px; display:flex; flex-direction:column;
+            align-items:center; justify-content:center; gap:10px;
+            cursor:pointer; overflow:hidden;
+            transition:transform 0.32s cubic-bezier(.4,0,.2,1), box-shadow 0.32s ease, border-color 0.32s ease;
+            animation: vipFloatIn 0.4s ease both;
+          }
+          .pcard:hover { transform:translateY(-5px) scale(1.05); }
+          .pcard .pcard-glow {
+            position:absolute; inset:-1px; border-radius:18px;
+            opacity:0; transition:opacity 0.32s ease;
+            pointer-events:none;
+          }
+          .pcard:hover .pcard-glow { opacity:1; }
+          .pcard .picon {
+            width:64px; height:64px; border-radius:16px;
+            display:flex; align-items:center; justify-content:center;
+            transition:transform 0.32s cubic-bezier(.4,0,.2,1), box-shadow 0.32s ease;
+            flex-shrink:0;
+          }
+          .pcard:hover .picon { transform:scale(1.1) rotate(-3deg); }
+          .pcard .plabel {
+            font-size:11px; font-weight:800; letter-spacing:3px;
+            color:rgba(255,255,255,0.55); text-transform:uppercase;
+            font-family:'Courier New',monospace;
+            transition:color 0.25s ease;
+          }
+          .pcard:hover .plabel { color:rgba(255,255,255,0.95); }
+          .pcard .pnum {
+            position:absolute; top:9px; right:11px;
+            font-size:8px; font-family:monospace; color:rgba(255,255,255,0.1); letter-spacing:1px;
+          }
+          .pcard:nth-child(1){animation-delay:0.04s}
+          .pcard:nth-child(2){animation-delay:0.09s}
+          .pcard:nth-child(3){animation-delay:0.14s}
+          .pcard:nth-child(4){animation-delay:0.19s}
+          .pcard:nth-child(5){animation-delay:0.24s}
+          .pcard:nth-child(6){animation-delay:0.29s}
+        </style>
+        <div id="vipShowcase" class="absolute inset-0 z-50 flex flex-col items-center overflow-y-auto transition-all duration-700" style="padding:16px 16px 32px; background: radial-gradient(circle at 50% 25%, #252528 0%, #050505 100%);">
+
+          <!-- Cinematic Video Backdrop: masked container removes all square boundaries; screen blend merges car onto the ash background -->
+          <div style="width:100%;max-width:640px;position:relative;flex-shrink:0;margin-bottom:-28px; -webkit-mask-image:radial-gradient(ellipse at 50% 65%, rgba(0,0,0,1) 20%, rgba(0,0,0,0) 65%); mask-image:radial-gradient(ellipse at 50% 65%, rgba(0,0,0,1) 20%, rgba(0,0,0,0) 65%);">
+            <video src="bros_amke_the_video_a_loop.mp4" autoplay loop muted playsinline
+              style="width:100%;display:block;mix-blend-mode:screen;filter:contrast(1.2) brightness(1.2);"></video>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:linear-gradient(to bottom,transparent,rgba(5,5,5,1));z-index:2;pointer-events:none;"></div>
+          </div>
+
+          <!-- Headline -->
+          <div style="text-align:center;position:relative;z-index:3;margin-top:20px;margin-bottom:28px;flex-shrink:0;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(38px,5vw,58px);letter-spacing:5px;color:white;line-height:1;text-shadow:0 0 60px rgba(255,255,255,0.15);">SELECT PROVIDER</div>
+            <div style="font-size:10px;color:#00d084;font-family:'Courier New',monospace;letter-spacing:5px;text-transform:uppercase;margin-top:6px;">THE ULTIMATE DISPATCH ENGINE AWAITS</div>
+            <div style="width:80px;height:1px;background:linear-gradient(90deg,transparent,#00d084,transparent);margin:10px auto 0;"></div>
+          </div>
+
+          <!-- Provider Grid -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:860px;flex-shrink:0;">
+
+            <!-- UBER -->
+            <button class="pcard" style="" onclick="app.activateDispatchEngine('Uber')" onmouseover="this.style.boxShadow='0 20px 50px rgba(255,255,255,0.1),0 0 0 1px rgba(255,255,255,0.35)'" onmouseout="this.style.boxShadow='none'">
+              <div class="pnum">01</div>
+              <div class="picon" style="background:var(--bg);border:1px solid rgba(255,255,255,0.15);">
+                <img src="https://cdn.simpleicons.org/uber/white" style="width:34px;height:34px;" alt="Uber"/>
+              </div>
+              <div class="plabel">UBER</div>
+            </button>
+
+            <!-- LYFT -->
+            <button class="pcard" onclick="app.activateDispatchEngine('Lyft')" onmouseover="this.style.boxShadow='0 20px 50px rgba(255,0,191,0.2),0 0 0 1px rgba(255,0,191,0.5)'" onmouseout="this.style.boxShadow='none'">
+              <div class="pnum">02</div>
+              <div class="picon" style="background:#FF00BF;box-shadow:0 8px 20px rgba(255,0,191,0.35);">
+                <img src="https://cdn.simpleicons.org/lyft/white" style="width:34px;height:34px;" alt="Lyft"/>
+              </div>
+              <div class="plabel">LYFT</div>
+            </button>
+
+            <!-- BOLT -->
+            <button class="pcard" onclick="app.activateDispatchEngine('Bolt')" onmouseover="this.style.boxShadow='0 20px 50px rgba(52,209,134,0.2),0 0 0 1px rgba(52,209,134,0.5)'" onmouseout="this.style.boxShadow='none'">
+              <div class="pnum">03</div>
+              <div class="picon" style="background:#34D186;box-shadow:0 8px 20px rgba(52,209,134,0.35);">
+                <svg viewBox="0 0 24 24" style="width:34px;height:34px;" fill="var(--fg)"><path d="M13.2 0L3.6 14.4h6l-2.4 9.6L16.8 9.6h-6z"/></svg>
+              </div>
+              <div class="plabel">BOLT</div>
+            </button>
+
+            <!-- DiDi -->
+            <button class="pcard" onclick="app.activateDispatchEngine('DiDi')" onmouseover="this.style.boxShadow='0 20px 50px rgba(255,122,0,0.2),0 0 0 1px rgba(255,122,0,0.5)'" onmouseout="this.style.boxShadow='none'">
+              <div class="pnum">04</div>
+              <div class="picon" style="background:#FF6900;box-shadow:0 8px 20px rgba(255,105,0,0.35);">
+                <!-- DiDi official D-shaped icon -->
+                <svg viewBox="0 0 32 32" style="width:34px;height:34px;" fill="none">
+                  <path d="M6 8h8c5.523 0 10 4.477 10 10S19.523 28 14 28H6V8z" stroke="white" stroke-width="3" fill="none"/>
+                  <path d="M23 8h3v20h-3z" fill="white"/>
+                </svg>
+              </div>
+              <div class="plabel">DiDi</div>
+            </button>
+
+            <!-- GRAB -->
+            <button class="pcard" onclick="app.activateDispatchEngine('Grab')" onmouseover="this.style.boxShadow='0 20px 50px rgba(0,177,79,0.2),0 0 0 1px rgba(0,177,79,0.5)'" onmouseout="this.style.boxShadow='none'">
+              <div class="pnum">05</div>
+              <div class="picon" style="background:#00B14F;box-shadow:0 8px 20px rgba(0,177,79,0.35);">
+                <img src="https://cdn.simpleicons.org/grab/white" style="width:34px;height:34px;" alt="Grab"/>
+              </div>
+              <div class="plabel">GRAB</div>
+            </button>
+
+            <!-- INDRIVE -->
+            <button class="pcard" onclick="app.activateDispatchEngine('InDrive')" onmouseover="this.style.boxShadow='0 20px 50px rgba(45,190,96,0.2),0 0 0 1px rgba(45,190,96,0.5)'" onmouseout="this.style.boxShadow='none'">
+              <div class="pnum">06</div>
+              <div class="picon" style="background:var(--bg-raised);border:2px solid #2DBE60;box-shadow:0 8px 20px rgba(45,190,96,0.3);">
+                <svg viewBox="0 0 40 28" style="width:38px;height:28px;" fill="none">
+                  <text x="2" y="22" font-family="Arial Black,Arial,sans-serif" font-size="20" font-weight="900" fill="#2DBE60">iD</text>
+                </svg>
+              </div>
+              <div class="plabel">INDRIVE</div>
+            </button>
+
+          </div>
+        </div>
+
+        <!-- DUAL-PANE DISPATCH ENGINE (HIDDEN INITIALLY) -->
+        <div id="dispatchEnginePane" class="flex flex-col md:flex-row h-full w-full transform translate-y-full opacity-0 transition-all duration-700 pointer-events-none absolute inset-0 z-40">
+          <!-- LEFT PANE: BOOKING ENGINE -->
+          <div id="rideLeftPane" class="w-full md:w-1/2 h-full overflow-y-auto custom-scroll p-8 bg-[#0a0a0c] border-r border-white/5 relative z-10 flex flex-col transition-all duration-300">
+            <!-- Premium provider header -->
+            <div class="flex justify-between items-center mb-1">
+              <div class="flex items-center gap-3">
+                <!-- Brand icon pill (injected by JS) -->
+                <div id="dispatchProviderIcon" style="display:none;width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.35s ease;"></div>
+                <div id="dispatchTitle" style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;color:white;line-height:1;">DISPATCH ENGINE</div>
+              </div>
+              <!-- Branded Auth Badge -->
+              <div id="providerAuthBadge" style="display:none;" class="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-[10px] font-sans text-zinc-400">
+                <span id="authBadgeText">Logged in</span>
+                <button onclick="app.signOutProvider()" class="text-red-400 hover:text-red-300 font-bold border-none bg-transparent cursor-pointer ml-1">Sign Out</button>
+              </div>
+            </div>
+            <div id="dispatchSubtitle" class="text-[10px] text-[#00d084] font-mono tracking-widest uppercase mb-1 transition-all duration-300">Secured Headless Routing</div>
+            <button onclick="app.returnToProviderSelect()" style="background:none;border:none;color:rgba(255,255,255,0.25);font-size:9px;font-family:'Courier New',monospace;letter-spacing:2px;text-transform:uppercase;cursor:pointer;padding:0;margin-bottom:20px;display:flex;align-items:center;gap:5px;transition:color 0.2s ease;" onmouseover="this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">
+              ← Change Provider
+            </button>
+
+            <!-- DYNAMIC BRANDED LOGIN CONTAINER -->
+            <div id="rideLoginContainer" style="display:none;" class="flex flex-col flex-1">
+              <!-- Content injected by desktop.js -->
+            </div>
+
+            <!-- BOOKING FORM CONTAINER -->
+            <div id="rideBookingFormContainer" class="flex flex-col flex-1">
+              <!-- CORE ROUTING -->
+              <div id="routeInputCard" class="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 relative overflow-hidden shadow-2xl transition-all duration-300">
+                <div id="routeBar" class="absolute right-0 top-0 bottom-0 w-1 bg-[#00d084] transition-all duration-300"></div>
+                
+                <div class="flex items-center gap-3 mb-4">
+                  <div id="pickupIndicator" class="w-3 h-3 rounded-full bg-[#00d084] shadow-[0_0_10px_rgba(0,208,132,0.8)] transition-all duration-300"></div>
+                  <input class="bg-transparent border-none text-white font-mono text-[14px] w-full outline-none" type="text" id="rideFrom" placeholder="Pickup Location (Detecting...)"/>
+                  <button id="gpsBtn" class="bg-[#00d084]/20 hover:bg-[#00d084]/40 text-[#00d084] px-3 py-1 rounded text-[10px] font-bold font-mono tracking-widest uppercase transition-all duration-300" onclick="app.detectRidePickup()">GPS</button>
+                </div>
+                
+                <div class="w-0.5 h-6 bg-white/20 ml-1.5 mb-4"></div>
+                
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="w-3 h-3 bg-white/20 rotate-45"></div>
+                  <input class="bg-transparent border-none text-white font-mono text-[14px] w-full outline-none" type="text" id="rideStop1" placeholder="+ Add Stop (Optional)"/>
+                </div>
+                
+                <div class="w-0.5 h-6 bg-white/20 ml-1.5 mb-4"></div>
+                
+                <div class="flex items-center gap-3 mb-4">
+                  <div id="destIndicator" class="w-3 h-3 rounded bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] transition-all duration-300"></div>
+                  <input class="bg-transparent border-none text-white font-mono text-[14px] w-full outline-none" type="text" id="rideTo" placeholder="Final Destination"/>
+                </div>
+
+                <div class="h-px w-full bg-white/10 my-4"></div>
+                
+                <div class="flex items-center gap-3">
+                  <input class="bg-transparent border-none text-white/70 font-mono text-[12px] w-1/2 outline-none" type="text" id="passengerName" placeholder="Passenger Name"/>
+                  <div class="w-px h-6 bg-white/10"></div>
+                  <input class="bg-transparent border-none text-white/70 font-mono text-[12px] w-1/2 outline-none" type="tel" id="passengerPhone" placeholder="Phone Number"/>
+                </div>
+              </div>
+
+              <!-- Removed Pre-Dispatch Ride Types & Checkboxes to match true aggregator flow -->
+              
+              <div id="telemetryHandshakeCard" class="mb-6">
+                <div class="text-[10px] text-white/50 font-mono uppercase tracking-widest mb-3">Live Telemetry Handshake</div>
+                <div class="flex items-center gap-3 bg-white/5 border border-white/10 p-4 rounded-xl transition-all duration-300">
+                  <div id="handshakeDot" class="w-3 h-3 bg-[#00d084] rounded-full animate-pulse shadow-[0_0_10px_#00d084] transition-all duration-300"></div>
+                  <div id="handshakeText" class="text-[12px] text-white font-mono tracking-widest transition-all duration-300">Awaiting destination to fetch live vehicles...</div>
+                </div>
+              </div>
+              
+              <!-- Saved Locations & Language -->
+              <div class="flex gap-2 mb-3">
+                <select id="driverLanguage" class="flex-1 bg-white/5 border border-white/10 text-white font-mono text-[11px] p-3 rounded-xl outline-none">
+                  <option value="en">Driver Lang: English</option>
+                  <option value="es">Driver Lang: Spanish</option>
+                  <option value="fr">Driver Lang: French</option>
+                </select>
+                <button class="bg-white/5 border border-white/10 text-white p-3 rounded-xl text-[14px] hover:bg-white/10">⭐</button>
+              </div>
+
+              <!-- SEARCH BUTTON -->
+              <button class="w-full bg-[#00d084] text-black font-mono font-bold tracking-widest text-[16px] py-4 rounded-xl shadow-[0_0_20px_rgba(0,208,132,0.4)] uppercase hover:bg-white hover:shadow-[0_0_30px_rgba(255,255,255,0.6)] transition-all mt-auto" id="searchRidesBtn" onclick="app.dispatchVIPRide()">DISPATCH SEARCH ENGINE →</button>
+            </div>
+
+            <!-- SEARCHING ANIMATION -->
+            <div id="rideSearching" style="display:none;text-align:center;padding:40px 0;">
+              <div class="text-4xl mb-4 animate-spin inline-block">⏳</div>
+              <div class="font-mono text-[18px] font-bold text-white tracking-widest uppercase mb-2">Calculating Telemetry</div>
+              <div class="font-mono text-[11px] text-[#00d084] tracking-widest uppercase" id="searchStatus">Initializing provider handshake...</div>
+            </div>
+
+            <!-- PROVIDER RESULTS -->
+            <div id="rideProviderResults" style="display:none;padding-top:20px;">
+              <div class="text-[10px] text-white/50 font-mono uppercase tracking-widest mb-4 flex justify-between items-center">
+                <span>Available Providers</span>
+                <span class="text-red-400">⚡ Dynamic Surge Active</span>
+              </div>
+              <div id="providerCards" class="flex flex-col gap-3"></div>
+            </div>
+
+            <!-- INLINE BOOKING STATE -->
+            <div id="rideInlineBookingState" style="display:none;padding-top:20px;">
+              <!-- Content injected dynamically by desktop.js -->
+            </div>
+
+            <!-- FARE ESTIMATES STATE -->
+            <div id="rideFareEstimates" style="display:none;padding-top:20px;">
+              <div class="text-[10px] text-white/50 font-mono uppercase tracking-widest mb-4 flex justify-between items-center">
+                <span>Available Vehicles</span>
+                <span class="text-[#00d084]">Live Pricing Active</span>
+              </div>
+              <div id="fareEstimateCards" class="flex flex-col gap-3"></div>
+            </div>
+
+            <!-- IN-APP PAYMENT STATE -->
+            <div id="ridePaymentForm" style="display:none;padding-top:20px;">
+              <!-- Content injected dynamically by desktop.js -->
+            </div>
+
+            <!-- HEADLESS PROVIDER SYNC MONITOR -->
+            <div id="providerSyncMonitor" class="mt-8 border-t border-white/5 pt-6 transition-all duration-300">
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-[10px] text-zinc-500 font-sans tracking-wider font-bold uppercase">Headless API Sync Console</span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 bg-[#00d084] rounded-full animate-ping provider-accent-bg"></span>
+                  <span class="text-[9px] text-[#00d084] font-sans font-bold uppercase tracking-wider provider-accent-text" id="syncMonitorStatusText">API Link: Online</span>
+                </span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="syncMonitorGrid">
+                <!-- Injected dynamically by desktop.js -->
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT PANE: LIVE MAP HUD -->
+          <div class="hidden md:block w-1/2 h-full relative overflow-hidden bg-[#0a0a0c] border-l border-white/5" id="rideMapHudContainer">
+            <!-- Simulated Map Background -->
+            <div class="absolute inset-0 opacity-30" style="background-image: radial-gradient(var(--fg) 1px, transparent 1px); background-size: 40px 40px; transform: perspective(500px) rotateX(60deg) scale(2); transform-origin: top center;"></div>
+            
+            <!-- Map Overlay Controls -->
+            <div class="absolute top-6 right-6 flex flex-col gap-3 z-20">
+              <button class="w-12 h-12 bg-white/10 backdrop-blur border border-white/20 rounded-full flex items-center justify-center text-xl text-white shadow-lg hover:bg-white/20 transition-all" title="Toggle Live Traffic">🚦</button>
+              <button class="w-12 h-12 bg-white/10 backdrop-blur border border-white/20 rounded-full flex items-center justify-center text-xl text-white shadow-lg hover:bg-white/20 transition-all" title="AR Walking Directions">📱</button>
+              <button class="w-12 h-12 bg-white/10 backdrop-blur border border-white/20 rounded-full flex items-center justify-center text-xl text-white shadow-lg hover:bg-white/20 transition-all" title="Weather Overlay">⛅</button>
+            </div>
+
+            <!-- Simulated Map Elements (Targeting Reticle) -->
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
+              <div class="w-32 h-32 border border-[#00d084]/30 rounded-full flex items-center justify-center animate-pulse relative">
+                <div class="w-24 h-24 border border-[#00d084]/50 rounded-full flex items-center justify-center relative">
+                  <div class="w-2 h-2 bg-[#00d084] rounded-full shadow-[0_0_15px_rgba(0,208,132,1)] z-10"></div>
+                  <!-- Simulated cars moving -->
+                  <div class="absolute text-[12px] transform -translate-x-16 -translate-y-8 animate-[spin_10s_linear_infinite] origin-[64px_32px]">🚗</div>
+                  <div class="absolute text-[12px] transform translate-x-12 translate-y-12 animate-[spin_15s_linear_infinite_reverse] origin-[-48px_-48px]">🚙</div>
+                </div>
+              </div>
+              <div class="mt-4 bg-black/80 border border-[#00d084]/30 px-4 py-2 rounded-lg backdrop-blur">
+                <div class="text-[9px] text-[#00d084] font-mono tracking-widest uppercase">Target Locked</div>
+                <div class="text-[12px] text-white font-mono font-bold">Awaiting Dispatch...</div>
+              </div>
+            </div>
+            
+            <div class="absolute bottom-6 left-6 right-6 bg-black/60 backdrop-blur border border-white/10 rounded-2xl p-4 z-20">
+              <div class="flex justify-between items-center mb-2">
+                <div class="text-[10px] text-white/50 font-mono tracking-widest uppercase">Live Telemetry</div>
+                <div class="text-[10px] text-[#00d084] font-mono tracking-widest uppercase">Stable</div>
+              </div>
+              <div class="flex gap-4">
+                <div class="flex-1">
+                  <div class="text-[18px] text-white font-mono font-bold">14<span class="text-[12px] text-white/50 ml-1">CARS</span></div>
+                  <div class="text-[9px] text-white/40 font-mono tracking-widest uppercase">In Radius</div>
+                </div>
+                <div class="w-px bg-white/10"></div>
+                <div class="flex-1">
+                  <div class="text-[18px] text-white font-mono font-bold">1.2<span class="text-[12px] text-white/50 ml-1">x</span></div>
+                  <div class="text-[9px] text-white/40 font-mono tracking-widest uppercase">Surge Mltp</div>
+                </div>
+                <div class="w-px bg-white/10"></div>
+                <div class="flex-1">
+                  <div class="text-[18px] text-[#00d084] font-mono font-bold">78<span class="text-[12px] text-[#00d084]/50 ml-1">%</span></div>
+                  <div class="text-[9px] text-[#00d084]/70 font-mono tracking-widest uppercase">Match Prob</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. GARAGE TAB -->
+      <section id="tab-garage" class="tab-content pt-4 pb-4 px-6 md:px-8 custom-scroll relative">
+        <!-- HEADER CONTROLS (always shown, centered) -->
+        <div class="max-w-2xl mx-auto w-full">
+          <!-- ROLE SELECTOR -->
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:4px; display:flex; gap:4px; margin-bottom:16px; box-shadow:0 4px 16px rgba(0,0,0,0.15);" class="max-w-sm mx-auto">
+            <button id="roleBtnUser" onclick="app.switchUserRole('driver')" style="flex:1; background:var(--accent); color:white; border:none; padding:9px; border-radius:8px; font-family:'Space Mono',monospace; font-size:10px; font-weight:bold; cursor:pointer; transition:all 0.2s; letter-spacing:1px; outline:none;">👨🏻‍✈️ DRIVER MODE</button>
+            <button id="roleBtnMech" onclick="app.switchUserRole('mechanic')" style="flex:1; background:transparent; color:var(--gray); border:none; padding:9px; border-radius:8px; font-family:'Space Mono',monospace; font-size:10px; font-weight:bold; cursor:pointer; transition:all 0.2s; letter-spacing:1px; outline:none;">👨🏾‍🔧 MECHANIC MODE</button>
+          </div>
+
+          <!-- USER PROFILE CARD -->
+          <div id="userProfileCard" class="mb-4"></div>
+
+          <!-- MECHANIC WORKSPACE DASHBOARD -->
+          <div id="mechanicCenterDashboard" style="display:none; animation:fadeInUp 0.4s ease both;"></div>
+
+          <!-- STATE 1: NO VEHICLE — SETUP FORM -->
+          <div id="vehicleSetup" class="max-w-sm mx-auto flex-col gap-3" style="display:flex;">
+            
+            <!-- AI Disclaimer Banner -->
+            <div style="background:rgba(255,136,0,0.08); border:1px solid rgba(255,136,0,0.15); border-radius:12px; padding:10px; display:flex; align-items:flex-start; gap:8px;">
+              <span style="font-size:16px;">⚠️</span>
+              <div style="font-size:10px; color:rgba(255,255,255,0.7); line-height:1.4;">
+                <strong style="color:#ff8800; text-transform:uppercase; font-size:10px; letter-spacing:1px; display:block; margin-bottom:3px;">Predictive AI Tracker</strong>
+                AutoTriage uses device sensors to predict wear & tear based on driving habits. It is not an emergency OBD hardware sensor and cannot detect sudden mechanical failures (e.g., chewed wires).
+              </div>
+            </div>
+
+            <div class="bg-gradient-to-b from-white/[0.03] to-transparent border border-white/10 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
+              <div class="absolute -top-32 -left-32 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              
+              <div class="text-center pb-4 border-b border-white/5 mb-4">
+              <div class="text-4xl mb-2 animate-[bounce_3s_infinite]">🚗</div>
+              <h2 class="font-bebas text-3xl tracking-wider text-white">GARAGE REGISTRY</h2>
+              <p class="text-[10px] text-zinc-400 font-mono max-w-xs mx-auto leading-relaxed mt-1">Link your hardware to auto-fetch dynamic diagnostic profiles & real-time telemetry.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <!-- Make input -->
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">🏢</span>
+                <input class="w-full bg-zinc-900/40 border border-zinc-800 text-white placeholder-zinc-500 pl-9 pr-3 py-2.5 rounded-lg font-mono text-[11px] outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300" type="text" id="vehMake" placeholder="Make (e.g. Toyota)"/>
+              </div>
+              
+              <!-- Model input -->
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">🚙</span>
+                <input class="w-full bg-zinc-900/40 border border-zinc-800 text-white placeholder-zinc-500 pl-9 pr-3 py-2.5 rounded-lg font-mono text-[11px] outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300" type="text" id="vehModel" placeholder="Model (e.g. Camry)"/>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <!-- Year input -->
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">📅</span>
+                <input class="w-full bg-zinc-900/40 border border-zinc-800 text-white placeholder-zinc-500 pl-9 pr-3 py-2.5 rounded-lg font-mono text-[11px] outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300" type="number" id="vehYear" placeholder="Year (e.g. 2019)" min="1980" max="2026"/>
+              </div>
+
+              <!-- Vehicle Type select -->
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">🛞</span>
+                <select class="w-full bg-zinc-900/40 border border-zinc-800 text-white pl-9 pr-8 py-2.5 rounded-lg font-mono text-[11px] outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300 appearance-none cursor-pointer" style="background-image: url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath fill=\'%23888\' d=\'M1 1l5 5 5-5\'/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center;" id="vehVType">
+                  <option value="Car" class="bg-[#121214] text-white">Sedan / Hatchback</option>
+                  <option value="SUV" class="bg-[#121214] text-white">SUV / Crossover</option>
+                  <option value="Truck" class="bg-[#121214] text-white">Pickup Truck</option>
+                  <option value="Motorcycle" class="bg-[#121214] text-white">Motorcycle</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Mileage input -->
+            <div class="relative mb-3">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">📊</span>
+              <input class="w-full bg-zinc-900/40 border border-zinc-800 text-white placeholder-zinc-500 pl-9 pr-3 py-2.5 rounded-lg font-mono text-[11px] outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300" type="number" id="vehMileage" placeholder="Odometer mileage (e.g. 45000)"/>
+            </div>
+
+            <button class="w-full py-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-mono font-bold tracking-widest text-[11px] uppercase transition-all duration-300 shadow-[0_4px_20px_rgba(37,99,235,0.2)] hover:shadow-[0_4px_25px_rgba(37,99,235,0.4)] hover:-translate-y-0.5 active:translate-y-0 outline-none" id="saveVehicleBtn" onclick="app.saveVehicleProfile()">
+              LINK VEHICLE →
+            </button>
+          </div>
+        </div>
+      </div><!-- end max-w-4xl -->
+
+        <!-- STATE 2: VEHICLE SAVED — DASHBOARD (full-width, outside max-w-4xl) -->
+        <div id="vehicleDashboard" style="display:none;" class="flex flex-col gap-4 w-full max-w-4xl mx-auto relative z-10">
+             
+             <!-- CINEMATIC VEHICLE HERO -->
+             <div id="vehicleCard" class="w-full relative rounded-2xl overflow-hidden shadow-[0_15px_35px_rgba(0,0,0,0.5)] border border-white/10 group hover:border-white/20 transition-all duration-700 h-[260px] flex items-end">
+             </div>
+
+             <!-- VIRTUAL TWIN QUICK LOGS -->
+             <div class="flex gap-3">
+               <button onclick="app.quickLog('fuel')" class="flex-1 bg-[#4da6ff]/10 border border-[#4da6ff]/20 text-[#4da6ff] p-3 rounded-xl font-mono text-[11px] font-bold uppercase tracking-widest cursor-pointer flex items-center justify-center gap-2 hover:bg-[#4da6ff]/20 transition-all shadow-[0_4px_15px_rgba(77,166,255,0.1)]">
+                 <span class="text-xl">⛽</span> JUST FILLED TANK
+               </button>
+               <button onclick="app.quickLog('oil')" class="flex-1 bg-[#ff8800]/10 border border-[#ff8800]/20 text-[#ff8800] p-3 rounded-xl font-mono text-[11px] font-bold uppercase tracking-widest cursor-pointer flex items-center justify-center gap-2 hover:bg-[#ff8800]/20 transition-all shadow-[0_4px_15px_rgba(255,136,0,0.1)]">
+                 <span class="text-xl">🛢️</span> JUST CHANGED OIL
+               </button>
+             </div>
+
+             <!-- HORIZONTAL AI MAINTENANCE PLANNER -->
+             <div class="w-full">
+               <div class="flex justify-between items-center mb-3 px-2">
+                 <div class="text-[10px] text-[var(--accent)] tracking-[0.2em] uppercase font-bold font-mono flex items-center gap-2 drop-shadow-[0_0_10px_rgba(230,57,70,0.5)]">
+                   <span class="animate-pulse">🤖</span> AI Action Planner
+                 </div>
+                 <div class="text-[9px] text-white/40 font-mono">Dynamic tasks injected directly from AI diagnostic analysis</div>
+               </div>
+               <style>
+                 #maintenanceRings::-webkit-scrollbar { height: 5px; }
+                 #maintenanceRings::-webkit-scrollbar-track { background: transparent; }
+                 #maintenanceRings::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+                 #maintenanceRings::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+               </style>
+               <div id="maintenanceRings" class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory"></div>
+             </div>
+
+             <!-- COCKPIT TELEMETRY -->
+             <div id="garageTelemetryPanel" class="p-4 border border-white/5 bg-white/[0.02] backdrop-blur-[30px] rounded-2xl relative overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-all duration-500 hover:bg-white/[0.03]">
+               <!-- Dynamically populated via app.renderDashboardTelemetry() -->
+             </div>
+             <!-- AI SEASONAL ALERTS + MANUFACTURER NOTICES ROW -->
+             <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Seasonal AI Alerts (Narrower, shorter text) -->
+                <div id="seasonalAlerts" class="lg:col-span-5 xl:col-span-4 animate-[fadeInUp_0.4s_ease_both]"></div>
+                <!-- NHTSA Recall / Manufacturer Notices (Wider, text-heavy) -->
+                <div id="recallSection" class="lg:col-span-7 xl:col-span-8 animate-[fadeInUp_0.4s_ease_both]"></div>
+             </div>
+
+             <!-- BOTTOM WIDGETS (ODOMETER & FUEL) -->
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <!-- ODOMETER (LARGER) -->
+               <div id="mileageCheckinCard" class="p-4 border border-[#00d084]/20 bg-black/60 backdrop-blur-[30px] rounded-2xl flex flex-col justify-between shadow-[0_12px_30px_rgba(0,0,0,0.5)] hover:border-[#00d084]/40 transition-all duration-500 min-h-[190px] relative overflow-hidden group">
+                 <div id="activeTrackingIndicator" style="display:none;position:absolute;top:0;left:0;right:0;height:4px;background:#00d084;box-shadow:0 0 15px #00d084;animation:pulse 1s infinite;"></div>
+                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(0,208,132,0.1)_0%,transparent_70%)] pointer-events-none"></div>
+                 <div class="relative z-10">
+                   <div class="flex justify-between items-center mb-3">
+                     <div class="text-[10px] text-[#00d084] tracking-[0.2em] uppercase font-bold font-mono drop-shadow-[0_0_10px_rgba(0,208,132,0.4)] flex items-center gap-2">
+                       📊 Virtual Odometer <span id="trackingDot" style="display:none;width:6px;height:6px;background:#00d084;border-radius:50%;animation:pulse 1.5s infinite;"></span>
+                     </div>
+                     <div id="mileageLastUpdate" class="text-[9px] text-white/40 font-mono px-3 py-1 bg-white/5 rounded-full border border-white/10"></div>
+                   </div>
+                   <div class="text-[10px] text-white/50 font-mono mb-4 leading-relaxed max-w-[85%]">Regular updates dramatically improve AI predictive maintenance accuracy.</div>
+                 </div>
+                 <div class="flex gap-3 mt-auto relative z-10">
+                   <input class="flex-1 bg-black/50 border border-white/10 text-white placeholder-white/30 p-3.5 rounded-xl font-mono text-[13px] outline-none focus:border-[#00d084]/50 focus:ring-1 focus:ring-[#00d084]/30 transition-all duration-300 shadow-inner" type="number" id="mileageUpdateInput" placeholder="Current reading"/>
+                   <button onclick="app.updateMileageCheckin()" class="bg-[#00d084] text-black px-6 rounded-xl font-mono text-[12px] font-bold hover:bg-emerald-400 transition-all duration-300 shadow-[0_0_15px_rgba(0,208,132,0.4)] active:scale-[0.96]">SYNC</button>
+                 </div>
+                 <div id="drivingRateInfo" class="text-[10px] text-[#00d084]/70 mt-3 font-mono text-center font-bold tracking-widest relative z-10"></div>
+               </div>
+
+               <!-- FUEL LOG (SMALLER BUT SAME HEIGHT) -->
+               <div class="p-4 border border-[#4da6ff]/20 bg-black/60 backdrop-blur-[30px] rounded-2xl flex flex-col shadow-[0_12px_30px_rgba(0,0,0,0.5)] hover:border-[#4da6ff]/40 transition-all duration-500 min-h-[190px] relative overflow-hidden group">
+                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(77,166,255,0.1)_0%,transparent_70%)] pointer-events-none"></div>
+                 <div class="relative z-10">
+                   <div class="text-[10px] text-[#4da6ff] tracking-[0.2em] uppercase font-bold font-mono mb-1 drop-shadow-[0_0_10px_rgba(77,166,255,0.4)]">⛽ Efficiency Log</div>
+                   <div class="text-[9px] text-white/50 font-mono mb-3">Track real MPG efficiency — supports all fuel units worldwide.</div>
+                 </div>
+
+                 <!-- ROW 1: Odometer + Distance Unit -->
+                 <div class="flex gap-2 mb-2 relative z-10">
+                   <input class="flex-1 bg-black/50 border border-white/10 text-white placeholder-white/30 p-3 rounded-lg font-mono text-[13px] outline-none shadow-inner focus:border-[#4da6ff]/50 focus:ring-1 focus:ring-[#4da6ff]/30 transition-all duration-300" type="number" id="fuelMileage" placeholder="Odometer reading"/>
+                   <select id="fuelDistUnit" onchange="app.updateFuelLabels()" class="bg-black/60 border border-white/10 text-white font-mono text-[11px] px-2 rounded-lg outline-none focus:border-[#4da6ff]/50 cursor-pointer" style="min-width:50px;">
+                     <option value="mi">mi</option>
+                     <option value="km">km</option>
+                   </select>
+                 </div>
+
+                 <!-- ROW 2: Fuel Amount + Unit -->
+                 <div class="flex gap-2 mb-2 relative z-10">
+                   <input class="flex-1 bg-black/50 border border-white/10 text-white placeholder-white/30 p-3 rounded-lg font-mono text-[13px] outline-none shadow-inner focus:border-[#4da6ff]/50 focus:ring-1 focus:ring-[#4da6ff]/30 transition-all duration-300" type="number" id="fuelGallons" placeholder="Fuel pumped"/>
+                   <select id="fuelUnit" onchange="app.updateFuelLabels()" class="bg-black/60 border border-white/10 text-white font-mono text-[10px] px-1.5 rounded-lg outline-none focus:border-[#4da6ff]/50 cursor-pointer" style="min-width:70px;">
+                     <option value="gal">gal (US)</option>
+                     <option value="imp">imp gal</option>
+                     <option value="L">liters (L)</option>
+                     <option value="kg_petrol">kg petrol</option>
+                     <option value="kg_diesel">kg diesel</option>
+                     <option value="kg_cng">kg CNG</option>
+                     <option value="lbs">lbs</option>
+                   </select>
+                 </div>
+
+                 <!-- Efficiency label preview -->
+                 <div id="fuelUnitPreview" class="text-[9px] text-white/30 font-mono mb-2 relative z-10 text-center tracking-wider">Will calculate: MPG (US)</div>
+
+                 <button onclick="app.logFuelEntry()" class="w-full bg-[#4da6ff]/10 border border-[#4da6ff]/30 text-[#4da6ff] hover:bg-[#4da6ff]/20 py-3 rounded-xl font-mono text-[12px] font-bold tracking-[0.2em] mb-3 transition-all duration-300 hover:shadow-[0_0_15px_rgba(77,166,255,0.3)] active:scale-[0.98] relative z-10">LOG FILL-UP →</button>
+                 
+                 <div class="bg-black/40 border border-white/5 rounded-xl p-3 flex-1 flex flex-col justify-center relative min-h-[70px] shadow-inner z-10">
+                   <canvas id="fuelChartCanvas" height="70" style="display:none;"></canvas>
+                   <div id="fuelEmpty" class="text-center text-white/30 text-[10px] font-mono tracking-wide">AI needs 2+ logs to calculate efficiency trend.</div>
+                 </div>
+                 <div id="fuelAiAlert" style="display:none;" class="mt-3 p-3 rounded-lg text-[11px] font-mono relative z-10"></div>
+               </div>
+             </div>
+
+             <!-- AFFILIATE PROGRAM PANEL -->
+             <div class="mt-2 mb-4">
+                <div class="p-4 border border-blue-500/20 bg-black/60 backdrop-blur-[30px] rounded-2xl w-full relative overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
+                   <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_70%)] pointer-events-none"></div>
+                   <div class="relative z-10 flex flex-col lg:flex-row gap-4 items-center justify-between">
+                     <div class="flex-1 w-full">
+                       <div class="text-[10px] text-[#4da6ff] tracking-[0.2em] uppercase font-bold font-mono mb-1 drop-shadow-[0_0_10px_rgba(77,166,255,0.4)] flex items-center gap-2">
+                         💰 Affiliate Referral Monetization
+                       </div>
+                       <div class="text-[10px] text-white/50 font-mono mb-4 leading-relaxed">
+                         Earn commission from parts searched by routing them through your own affiliate accounts. Custom referral checkout links for eBay, Jumia, and Amazon.
+                       </div>
+                       <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
+                         <div>
+                           <label class="block text-[9px] text-white/40 font-mono uppercase mb-1">eBay Campaign ID (campid)</label>
+                           <input type="text" id="affEbay" placeholder="e.g. 5339045678" class="w-full bg-black/40 border border-white/10 text-white placeholder-white/20 px-3.5 py-2.5 rounded-xl font-mono text-[11px] outline-none focus:border-blue-500/50 transition-all" />
+                         </div>
+                         <div>
+                           <label class="block text-[9px] text-white/40 font-mono uppercase mb-1">Amazon Associate Tag</label>
+                           <input type="text" id="affAmazon" placeholder="e.g. autotriage-20" class="w-full bg-black/40 border border-white/10 text-white placeholder-white/20 px-3.5 py-2.5 rounded-xl font-mono text-[11px] outline-none focus:border-blue-500/50 transition-all" />
+                         </div>
+                         <div>
+                           <label class="block text-[9px] text-white/40 font-mono uppercase mb-1">Jumia KOL / Partner ID</label>
+                           <input type="text" id="affJumia" placeholder="e.g. kol" class="w-full bg-black/40 border border-white/10 text-white placeholder-white/20 px-3.5 py-2.5 rounded-xl font-mono text-[11px] outline-none focus:border-blue-500/50 transition-all" />
+                         </div>
+                       </div>
+                     </div>
+                     <button onclick="app.saveAffiliateCredentials()" class="shrink-0 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3.5 rounded-xl font-mono text-[12px] font-bold tracking-wider transition-all duration-300 shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-[0.96] w-full lg:w-auto">
+                       SAVE CREDENTIALS
+                     </button>
+                   </div>
+                </div>
+             </div>
+
+             <!-- TIMELINE / QUICK ADD ROW -->
+             <div class="mt-2 mb-4">
+                <div class="p-4 border border-white/5 bg-white/[0.02] backdrop-blur-[30px] rounded-2xl w-full relative overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
+                   <div class="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 pointer-events-none"></div>
+                   <div class="relative z-10 flex justify-between items-center mb-4">
+                     <div class="flex items-center gap-2">
+                       <span class="text-lg">🎙️</span>
+                       <h2 class="font-mono font-bold tracking-widest text-[11px] text-zinc-400 uppercase">Log History & Maintenance Feed</h2>
+                     </div>
+                     <button onclick="app.openLogService()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-lg text-[10px] font-mono font-bold tracking-wider transition-all duration-300 shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+                       + ADD ENTRY
+                     </button>
+                   </div>
+                   
+                   <div class="mb-4 relative z-10">
+                     <div class="flex gap-2.5 relative">
+                       <button id="voiceMicBtn" onclick="app.toggleVoiceLog()" class="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 border-none text-[20px] flex items-center justify-center cursor-pointer relative z-10 shadow-[0_0_15px_rgba(255,136,0,0.3)] hover:scale-105 transition-transform"><span class="drop-shadow-lg">🎙️</span></button>
+                       <input type="text" id="aiLogInput" placeholder="Describe the service (e.g. 'I changed my oil today')" 
+                              class="w-full bg-black/40 border border-white/10 text-white placeholder-zinc-600 px-4 py-3.5 rounded-xl outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 font-mono text-[13px] transition-all"
+                              onkeypress="if(event.key==='Enter') app.quickLogService()"/>
+                       <button onclick="app.quickLogService()" class="bg-white/10 hover:bg-white/20 text-white px-6 rounded-xl font-mono text-[12px] tracking-wider font-bold transition-all whitespace-nowrap backdrop-blur-md">
+                         PARSE AI ✨
+                       </button>
+                     </div>
+                   </div>
+
+                   <div class="text-[10px] text-zinc-500 tracking-widest font-mono uppercase mb-4 font-bold relative z-10">Timeline</div>
+                   <div id="serviceTimeline" class="space-y-3 relative z-10"></div>
+                </div>
+             </div>
+
+             <!-- ACTIVE & RECENT RIDE DISPATCHES -->
+             <div id="garageRidesCard" style="display:none;" class="p-4 border border-[#4da6ff]/20 bg-black/60 backdrop-blur-[30px] rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.5)] hover:border-[#4da6ff]/40 transition-all duration-500 relative overflow-hidden">
+               <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(77,166,255,0.06)_0%,transparent_70%)] pointer-events-none"></div>
+               <div class="relative z-10">
+                 <div class="text-[10px] text-[#4da6ff] tracking-[0.2em] uppercase font-bold font-mono mb-3 drop-shadow-[0_0_10px_rgba(77,166,255,0.4)] flex items-center gap-2">
+                   🚗 Active Ride Dispatches
+                 </div>
+                 <div id="garageRidesList" class="flex flex-col gap-3"></div>
+               </div>
+             </div>
+
+        </div><!-- end vehicleDashboard -->
+      </section>
+
+      <!-- 6. EMERGENCY TAB -->
+      <section id="tab-emergency" class="tab-content pt-4 pb-4 px-6 md:px-8 custom-scroll relative overflow-hidden bg-black">
+        <div class="absolute top-[-20%] left-[50%] -translate-x-1/2 w-[80%] h-[50%] bg-red-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+        <div class="max-w-2xl mx-auto w-full relative z-10 flex flex-col items-center pt-4">
+          <div class="text-[36px] md:text-[48px] mb-2 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)] animate-pulse">🚨</div>
+          <h1 class="text-[28px] md:text-[36px] font-black tracking-tight mb-2 text-red-500 font-bebas leading-none">EMERGENCY</h1>
+          <p class="text-[12px] text-white/60 mb-6 font-mono text-center">All lines are available for 24/7 assistance.</p>
+
+          <!-- MAIN SOS SLIDER -->
+          <div class="slide-sos-container w-full max-w-md h-[64px] mb-6 shadow-[0_15px_40px_rgba(220,38,38,0.2)]" id="sosSlider">
+            <div class="slide-track-fill bg-gradient-to-r from-red-600 to-red-800 h-full w-[64px] rounded-full absolute left-0 top-0 transition-none" id="sosTrack"></div>
+            <div class="slide-text text-white/50 font-black text-[12px] tracking-[3px] z-10 relative pointer-events-none">SLIDE TO CALL 112</div>
+            <div class="slide-handle w-[54px] h-[54px] text-[22px] shadow-[0_0_15px_rgba(0,0,0,0.5)] z-20 absolute left-[5px] top-[5px] hover:scale-105" id="sosHandle" onmousedown="app.initSOSSlider(event)">📞</div>
+          </div>
+
+          <div class="flex flex-col gap-3 w-full max-w-md mb-6">
+            <button class="action-btn red-btn w-full font-mono text-[12px] tracking-wider py-3 shadow-[0_8px_24px_rgba(220,38,38,0.2)] hover:-translate-y-0.5" onclick="app.broadcastLocation()">📍 SHARE LIVE LOCATION VIA SMS</button>
+            <button class="w-full bg-[#1c1c1e] border border-white/10 text-red-400 font-mono text-[12px] tracking-wider py-3 rounded-xl hover:bg-white/5 transition-colors" onclick="app.switchTab('checklist')">📋 View Breakdown Checklist</button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 md:gap-3 w-full">
+            <a href="tel:911" class="em-num-btn p-3 md:p-4 hover:-translate-y-0.5 shadow-lg bg-white/5 border border-white/10 rounded-xl flex justify-between items-center transition-all">
+              <div class="em-num-left">
+                <div class="em-num-label text-[9px] md:text-[10px] text-[#8e93a0] uppercase tracking-widest mb-0.5">General Police</div>
+                <div class="em-num-val text-[22px] md:text-[28px] font-bebas text-white leading-none">911</div>
+              </div>
+              <div class="em-num-right text-[16px] md:text-[20px] bg-red-500/20 text-red-500 rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center border border-red-500/30">📞</div>
+            </a>
+            <a href="tel:999" class="em-num-btn p-3 md:p-4 hover:-translate-y-0.5 shadow-lg bg-white/5 border border-white/10 rounded-xl flex justify-between items-center transition-all">
+              <div class="em-num-left">
+                <div class="em-num-label text-[9px] md:text-[10px] text-[#8e93a0] uppercase tracking-widest mb-0.5">Medical Rescue</div>
+                <div class="em-num-val text-[22px] md:text-[28px] font-bebas text-white leading-none">999</div>
+              </div>
+              <div class="em-num-right text-[16px] md:text-[20px] bg-red-500/20 text-red-500 rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center border border-red-500/30">📞</div>
+            </a>
+          </div>
+          
+          <div class="w-full mt-6 text-center">
+             <div class="text-[11px] font-mono text-white/40 mb-2 uppercase tracking-widest">Get an emergency ride</div>
+             <div class="flex justify-center gap-4">
+                <a href="https://lyft.com/" target="_blank" class="prov-btn bolt px-6 py-3 text-[12px]">⚡ Lyft</a>
+                <a href="https://grab.com" target="_blank" class="prov-btn rida px-6 py-3 text-[12px]">🔴 Grab</a>
+             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. HISTORY TAB -->
+      <section id="tab-history" class="tab-content pt-4 pb-4 px-6 md:px-8 custom-scroll">
+         <div class="max-w-3xl mx-auto w-full">
+            <div class="flex justify-between items-center mb-4">
+               <h1 class="font-bebas text-3xl uppercase tracking-wide flex items-center gap-2">
+                  <button onclick="app.switchTab('diagnosis')" class="text-[#8e93a0] hover:text-white mr-2 bg-white/5 px-3 py-1.5 rounded-lg text-xs font-mono tracking-normal">← Back</button>
+                  🕒 HISTORY
+               </h1>
+               <button onclick="app.openManualDiagnosisModal()" class="bg-[#00d084]/15 border border-[#00d084]/30 hover:bg-[#00d084]/25 text-[#00d084] px-3.5 py-2 rounded-lg text-[10px] font-mono font-bold transition-all">+ MANUALLY WRITE REPORT</button>
+            </div>
+            <div id="historyList" class="flex flex-col gap-3"></div>
+         </div>
+      </section>
+
+      <!-- 8. PARTS TAB -->
+      <section id="tab-parts" class="tab-content pt-4 pb-4 px-6 md:px-8 custom-scroll">
+         <div class="max-w-3xl mx-auto w-full">
+            <!-- HERO HEADER -->
+            <div class="relative rounded-2xl overflow-hidden mb-4 p-4" style="background:linear-gradient(135deg,#0d1117 0%,#111827 60%,#0a0f1e 100%);border:1px solid rgba(255,255,255,0.06);">
+              <div class="absolute -top-16 -right-16 w-36 h-36 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(77,166,255,0.12),transparent 70%);"></div>
+              <div class="absolute -bottom-12 -left-12 w-28 h-28 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(255,136,0,0.08),transparent 70%);"></div>
+              <div class="flex items-center gap-3 mb-1.5">
+                <button onclick="app.switchTab('dashboard')" class="text-[#8e93a0] hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-mono tracking-normal transition-all">← Back</button>
+              </div>
+              <div class="text-[9px] text-[#4da6ff] font-mono tracking-widest uppercase font-bold mb-0.5">Live Parts Matching</div>
+              <div class="text-[24px] font-bebas text-white tracking-wider leading-none mb-1.5">PARTS PRICE EXPLORER</div>
+              <div class="text-[11px] text-gray-400 font-mono">Scalable active inventory indexed from global databases. Prices auto-calibrated for specification.</div>
+            </div>
+
+            <!-- FILTER CHIPS -->
+            <div class="flex gap-1.5 overflow-x-auto pb-2 mb-2 custom-scroll hide-scrollbar">
+              <button onclick="app.filterPartCategory('all')" class="app-part-chip active" data-cat="all" style="background:rgba(77,166,255,0.1);border:1px solid rgba(77,166,255,0.3);color:#4da6ff;padding:5px 12px;border-radius:15px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;">ALL PARTS</button>
+              <button onclick="app.filterPartCategory('engine')" class="app-part-chip" data-cat="engine" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#888;padding:5px 12px;border-radius:15px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;">⚙️ ENGINE</button>
+              <button onclick="app.filterPartCategory('brakes')" class="app-part-chip" data-cat="brakes" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#888;padding:5px 12px;border-radius:15px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;">🛑 BRAKES</button>
+              <button onclick="app.filterPartCategory('electrical')" class="app-part-chip" data-cat="electrical" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#888;padding:5px 12px;border-radius:15px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;">⚡ ELECTRICAL</button>
+              <button onclick="app.filterPartCategory('suspension')" class="app-part-chip" data-cat="suspension" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#888;padding:5px 12px;border-radius:15px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;">🔩 SUSPENSION</button>
+              <button onclick="app.filterPartCategory('cooling')" class="app-part-chip" data-cat="cooling" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#888;padding:5px 12px;border-radius:15px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;">❄️ COOLING</button>
+              <button onclick="app.filterPartCategory('tyres')" class="app-part-chip" data-cat="tyres" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#888;padding:5px 12px;border-radius:15px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:1px;transition:all 0.2s;white-space:nowrap;">🛞 TYRES</button>
+            </div>
+
+            <!-- TIP -->
+            <div class="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl" style="background:rgba(77,166,255,0.06);border:1px solid rgba(77,166,255,0.15);">
+              <span class="text-lg">💡</span>
+              <span id="partsCurrencyTip" class="text-[10px] text-white/50 font-mono leading-relaxed">Prices shown are <strong class="text-[#4da6ff]">Nigerian Naira (₦)</strong> estimates. Actual prices vary by location, brand, and vehicle model.</span>
+            </div>
+
+            <div class="flex gap-2.5 mb-4">
+              <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-3.5 flex items-center text-white/40 text-xs">🔍</span>
+                <input class="fi w-full font-mono text-[12px] py-2.5 pl-10 pr-3 bg-white/5 border border-white/10 rounded-xl focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all text-white placeholder-white/30" type="text" id="partSearch" placeholder="Search for a part (e.g. Brake Pads)" onkeydown="if(event.key === 'Enter') app.searchPart(true)"/>
+              </div>
+              <button onclick="app.searchPart(true)" class="bg-blue-600 hover:bg-blue-500 border border-transparent text-white font-mono text-[12px] font-bold px-6 rounded-xl transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer shadow-[0_0_12px_rgba(37,99,235,0.3)]">Search</button>
+            </div>
+            <div id="partsResults" class="grid grid-cols-2 gap-3"></div>
+            <div id="recommended-tools-root"></div>
+         </div>
+      </section>
+
+      <!-- 9. CHECKLIST TAB -->
+      <section id="tab-checklist" class="tab-content pt-4 pb-4 px-6 md:px-8 custom-scroll">
+         <div class="max-w-3xl mx-auto w-full">
+            <h1 class="font-bebas text-3xl mb-4 uppercase tracking-wide flex items-center gap-2 text-red-500">
+               <button onclick="app.switchTab('emergency')" class="text-[#8e93a0] hover:text-white mr-2 bg-white/5 px-3 py-1.5 rounded-lg text-xs font-mono tracking-normal">← Back</button>
+               📋 BREAKDOWN CHECKLIST
+            </h1>
+            <div class="bg-[#141517] border border-white/10 p-4 rounded-xl mb-3 shadow-lg border-l-4 border-l-red-500 hover:bg-white/5 transition-colors">
+              <h3 class="text-[14px] font-bold text-red-400 mb-1.5 font-mono">1. Move to Safety</h3>
+              <p class="text-[12px] text-[#8e93a0] leading-relaxed">Pull over to the right side of the road. Turn your steering wheel away from the road.</p>
+            </div>
+            <div class="bg-[#141517] border border-white/10 p-4 rounded-xl mb-3 shadow-lg border-l-4 border-l-orange-500 hover:bg-white/5 transition-colors">
+              <h3 class="text-[14px] font-bold text-orange-400 mb-1.5 font-mono">2. Hazard Lights & Triangle</h3>
+              <p class="text-[12px] text-[#8e93a0] leading-relaxed">Turn on your hazard lights immediately. Place your C-Caution triangle 50 meters behind your car.</p>
+            </div>
+            <div class="bg-[#141517] border border-white/10 p-4 rounded-xl mb-3 shadow-lg border-l-4 border-l-yellow-500 hover:bg-white/5 transition-colors">
+              <h3 class="text-[14px] font-bold text-yellow-400 mb-1.5 font-mono">3. Stay Inside (If Safe)</h3>
+              <p class="text-[12px] text-[#8e93a0] leading-relaxed">If you are on a busy expressway, stay inside with seatbelts on unless there is smoke or fire.</p>
+            </div>
+            <div class="bg-[#141517] border border-white/10 p-4 rounded-xl mb-3 shadow-lg border-l-4 border-l-blue-500 hover:bg-white/5 transition-colors">
+              <h3 class="text-[14px] font-bold text-blue-400 mb-1.5 font-mono">4. Call for Help</h3>
+              <p class="text-[12px] text-[#8e93a0] leading-relaxed">Use the Emergency/SOS tab to call Rescue (999) or book an emergency ride.</p>
+            </div>
+         </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- PROFILE SETTINGS DRAWER -->
+  <div id="profileDrawer" style="display:none;position:fixed;inset:0;z-index:90000;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);justify-content:flex-end;" onclick="app.closeProfileDrawer(event)">
+    <div id="profileDrawerPanel" style="background:var(--bg);border-left:1px solid rgba(255,255,255,0.08);width:85%;max-width:340px;height:100%;padding:32px 24px;transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);overflow-y:auto;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--fg);">PROFILE & SETTINGS</div>
+        <button onclick="app.closeProfileDrawer()" style="background:rgba(255,255,255,0.05);border:none;color:var(--fg);width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+
+      <!-- User Header -->
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--bg-raised),#222);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:24px;" id="profileDrawerAvatar">👤</div>
+        <div>
+          <div style="font-weight:bold;font-size:16px;color:var(--fg);font-family:'Space Mono',monospace;" id="profileDrawerName">Guest User</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;font-family:'Space Mono',monospace;" id="profileDrawerStatus">Local Device Profile</div>
+        </div>
+      </div>
+
+      <!-- Role Switcher (Visible if Pro) -->
+      <div id="roleSwitcherContainer" style="display:none;margin-bottom:24px;">
+        <div style="font-size:10px;color:#8e93a0;letter-spacing:1px;margin-bottom:8px;font-weight:bold;font-family:'Space Mono',monospace;text-transform:uppercase;">ACTIVE ROLE</div>
+        <div style="display:flex;background:rgba(255,255,255,0.05);border-radius:12px;padding:4px;border:1px solid rgba(255,255,255,0.1);">
+          <button id="roleBtnUserDrawer" onclick="app.switchUserRole('driver')" style="flex:1;background:var(--accent,#2563eb);color:white;border:none;border-radius:8px;padding:10px;font-family:'Space Mono',monospace;font-size:11px;font-weight:bold;cursor:pointer;transition:all 0.2s;">DRIVER</button>
+          <button id="roleBtnMechDrawer" onclick="app.switchUserRole('mechanic')" style="flex:1;background:transparent;color:var(--gray,#8e93a0);border:none;border-radius:8px;padding:10px;font-family:'Space Mono',monospace;font-size:11px;font-weight:bold;cursor:pointer;transition:all 0.2s;">MECHANIC</button>
+        </div>
+      </div>
+
+      <!-- Menu Items -->
+      <div style="display:flex;flex-direction:column;gap:12px;flex:1;font-family:'Space Mono',monospace;">
+        <button id="applyProBtn" onclick="window.location.href='verify.html'" style="display:flex;align-items:center;gap:16px;background:linear-gradient(90deg, rgba(255,136,0,0.05), transparent);border:1px solid rgba(255,136,0,0.2);padding:16px;border-radius:16px;cursor:pointer;text-align:left;color:var(--fg);transition:all 0.2s;">
+          <div style="font-size:20px;">🛡️</div>
+          <div>
+            <div style="font-weight:bold;font-size:13px;color:#ff8800;">Apply as Pro Mechanic</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Get verified & earn on AutoTriage</div>
+          </div>
+        </button>
+
+        <button onclick="alert('Your currency is set to USD based on your locale.');" style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);padding:16px;border-radius:16px;cursor:pointer;text-align:left;color:var(--fg);transition:all 0.2s;">
+          <div style="font-size:20px;">💵</div>
+          <div>
+            <div style="font-weight:bold;font-size:13px;">Currency Preferences</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Currently: USD ($)</div>
+          </div>
+        </button>
+
+        <button onclick="app.openTriageHelpModal()" style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);padding:16px;border-radius:16px;cursor:pointer;text-align:left;color:var(--fg);transition:all 0.2s;">
+          <div style="font-size:20px;">🤖</div>
+          <div>
+            <div style="font-weight:bold;font-size:13px;">Triage Help</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Confused? Ask the AI</div>
+          </div>
+        </button>
+
+        <button onclick="alert('Your region & currency are automatically set based on your cellular network Time Zone. Manual override is coming soon!')" style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);padding:16px;border-radius:16px;cursor:pointer;text-align:left;color:var(--fg);transition:all 0.2s;">
+          <div style="font-size:20px;">🌍</div>
+          <div>
+            <div style="font-weight:bold;font-size:13px;">Region & Currency</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Auto-detected via Time Zone</div>
+          </div>
+        </button>
+
+        <button onclick="app.exportVehicleData()" style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);padding:16px;border-radius:16px;cursor:pointer;text-align:left;color:var(--fg);transition:all 0.2s;">
+          <div style="font-size:20px;">💾</div>
+          <div>
+            <div style="font-weight:bold;font-size:13px;">Export Vehicle Data</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Download your service history</div>
+          </div>
+        </button>
+
+        <!-- Help & Explainer (matches mobile app) -->
+        <button onclick="window.open('auto-triage-explainer.html', '_blank')" style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);padding:16px;border-radius:16px;cursor:pointer;text-align:left;color:var(--fg);transition:all 0.2s;">
+          <div style="font-size:20px;">❓</div>
+          <div>
+            <div style="font-weight:bold;font-size:13px;">Help &amp; Explainer</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Learn how to use AutoTriage</div>
+          </div>
+        </button>
+
+        <button id="telemetryHUDButton" onclick="app.toggleTelemetryHUD()" style="display:none;align-items:center;gap:16px;background:rgba(255,136,0,0.04);border:1px solid rgba(255,136,0,0.15);padding:16px;border-radius:16px;cursor:pointer;text-align:left;color:var(--fg);transition:all 0.2s;">
+          <div style="font-size:20px;">🛡️</div>
+          <div>
+            <div style="font-weight:bold;font-size:13px;color:#ff8800;">Developer Telemetry HUD</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;">Monitor AI API logging & metrics</div>
+          </div>
+        </button>
+
+        <div id="telemetryHUD" style="display:none;margin-top:12px;animation:fadeInUp 0.3s ease both;"></div>
+      </div>
+
+      <!-- Danger Zone -->
+      <div style="margin-top:48px;padding-top:24px;border-top:1px solid rgba(230,57,70,0.1);">
+        <div style="font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;font-weight:bold;font-family:'Space Mono',monospace;">Danger Zone</div>
+        <button onclick="app.factoryResetApp()" style="width:100%;background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);color:var(--accent);padding:16px;border-radius:16px;font-family:'Space Mono',monospace;font-size:11px;font-weight:bold;cursor:pointer;text-align:center;transition:all 0.2s;">⚠️ FACTORY RESET APP</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MECHANIC DETAIL PROFILE DRAWER (DRIVER VIEW) -->
+  <div id="mechDetailModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);justify-content:flex-end;" onclick="app.closeMechanicProfileDetail()">
+    <div id="mechDetailContent" style="background:#0f0f11;border-left:1px solid rgba(255,255,255,0.08);width:90%;max-width:440px;height:100%;padding:0;transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);overflow-y:auto;display:flex;flex-direction:column;position:relative;" onclick="event.stopPropagation()">
+      <!-- Populated dynamically by JS -->
+    </div>
+  </div>
+
+  <!-- APPOINTMENT BOOKING FORM DRAWER -->
+  <div id="bookingFormModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);justify-content:flex-end;" onclick="app.closeBookingFormModal()">
+    <div id="bookingFormContent" style="background:#0f0f11;border-left:1px solid rgba(255,255,255,0.08);width:90%;max-width:440px;height:100%;padding:32px 24px;transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);overflow-y:auto;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+      <!-- Populated dynamically by JS -->
+    </div>
+  </div>
+
+  <!-- LIVE CHAT DRAWER -->
+  <div id="chatDrawerModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);justify-content:flex-end;" onclick="app.closeChatDrawer()">
+    <div id="chatDrawerContent" style="background:#0f0f11;border-left:1px solid rgba(255,255,255,0.08);width:90%;max-width:440px;height:100%;padding:24px;transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button onclick="app.closeChatDrawer()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--fg);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;">✕</button>
+          <div>
+            <div id="chatTargetRole" style="font-size:8px;font-family:'Space Mono',monospace;font-weight:bold;color:#ff8800;letter-spacing:1px;text-transform:uppercase;">CHAT ASSISTANCE</div>
+            <h2 id="chatTargetName" style="font-size:18px;font-weight:bold;color:var(--fg);margin:0;letter-spacing:0.5px;">Mechanic Name</h2>
+          </div>
+        </div>
+        <div id="chatTargetStatusBadge" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.02);padding:6px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);">
+          <span style="width:6px;height:6px;border-radius:50%;background:#00d084;display:inline-block;animation:pulse 1.5s infinite;"></span>
+          <span style="font-size:8px;font-family:'Space Mono',monospace;font-weight:bold;color:#00d084;letter-spacing:1px;">ONLINE</span>
+        </div>
+      </div>
+
+      <!-- Messages Container -->
+      <div id="chatMessageStream" style="flex:1;overflow-y:auto;padding-bottom:16px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth;">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- AI Share Banner -->
+      <div id="chatAiShareBanner" style="display:none;background:rgba(255,136,0,0.08);border:1px solid rgba(255,136,0,0.15);border-radius:16px;padding:12px;margin-bottom:12px;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="font-size:10px;color:#ff8800;font-family:'Space Mono',monospace;line-height:1.4;">
+          ⚡ <strong>Active AI Diagnosis Found!</strong><br>Share report details with the mechanic.
+        </div>
+        <button onclick="app.shareAiDiagnosisToChat()" style="background:#ff8800;border:none;color:black;padding:6px 12px;border-radius:8px;font-family:'Space Mono',monospace;font-size:9px;font-weight:bold;cursor:pointer;flex-shrink:0;">SHARE</button>
+      </div>
+
+      <!-- Input Footer -->
+      <div style="display:flex;gap:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+        <input type="text" id="chatMessageInput" placeholder="Type a message..." style="flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 16px;color:var(--fg);font-family:'Space Mono',monospace;font-size:11px;outline:none;transition:border-color 0.2s;" onkeypress="if(event.key === 'Enter') app.sendChatMessage()">
+        <button onclick="app.sendChatMessage()" style="width:46px;height:46px;background:var(--fg);color:var(--bg);border:none;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:transform 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='none'">⚡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKING TRANSMITTING OVERLAY -->
+  <div id="bookingTransmittingOverlay" style="display:none;position:fixed;inset:0;z-index:9999999;background:#030303;flex-direction:column;align-items:center;justify-content:center;padding:32px;">
+    <div style="font-size:64px;margin-bottom:24px;animation:pulse 2s infinite ease-in-out;">📡</div>
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:white;margin-bottom:8px;text-align:center;">TRANSMITTING APPOINTMENT</h2>
+    <p style="font-size:11px;color:#8e93a0;text-align:center;max-width:280px;line-height:1.6;margin-bottom:32px;">AutoTriage is routing your appointment data and dispatching secure SMS & Email payloads to the mechanic...</p>
+    
+    <div style="width:100%;max-width:300px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;font-family:'Space Mono',monospace;font-size:10px;line-height:1.8;box-shadow:0 12px 36px rgba(0,0,0,0.4);">
+      <div id="txLog1" style="color:#8e93a0;">&bull; Packaging vehicle profile...</div>
+      <div id="txLog2" style="color:#8e93a0;">&bull; Deploying active in-app notice...</div>
+      <div id="txLog3" style="color:#8e93a0;">&bull; Routing secure email dispatch...</div>
+      <div id="txLog4" style="color:#8e93a0;">&bull; Handshaking carrier network for SMS...</div>
+    </div>
+    
+    <div id="txSuccessMessage" style="display:none;text-align:center;margin-top:24px;animation:fadeInUp 0.4s ease both;">
+      <div style="font-size:32px;margin-bottom:8px;">✅</div>
+      <div style="font-size:12px;font-weight:bold;color:#00d084;letter-spacing:1px;">TRANSMISSION SUCCESSFUL</div>
+      <div style="font-size:9px;color:#8e93a0;margin-top:4px;">SMS & Email pipelines resolved!</div>
+    </div>
+  </div>
+
+  <!-- VITAL OVERRIDE MODAL -->
+  <div id="vitalOverrideModal" style="display:none;" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="app.closeVitalOverrideModal(event)">
+    <div class="bg-[#121214] border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden animate-[fadeInUp_0.3s_ease_both]" onclick="event.stopPropagation()">
+      <div class="flex items-center gap-4 mb-6">
+        <span id="overrideVitalIcon" class="text-4xl">🔋</span>
+        <div>
+          <h2 id="overrideVitalTitle" class="font-bebas text-3xl tracking-wider text-white">BATTERY HEALTH</h2>
+          <p class="text-[10px] text-zinc-500 font-mono mt-1">Directly input the precise health score for this component.</p>
+        </div>
+      </div>
+      <style>
+        .cyber-textbox {
+          background-color: #121212;
+          border: 1px solid #222;
+          color: var(--fg);
+          font-family: 'Space Mono', monospace;
+          padding: 15px;
+          border-radius: 12px;
+          resize: none;
+          width: 100%;
+          min-height: 100px;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .cyber-textbox:focus {
+          outline: none;
+          border-color: #00FF88;
+          box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+      </style>
+      <div class="mb-6 text-center">
+        <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider block mb-2 text-left">Component Update / Observation</span>
+        <textarea id="cyberOverrideTextbox" class="cyber-textbox" placeholder="e.g. 'Just replaced it'"></textarea>
+      </div>
+      <input type="hidden" id="overrideVitalKey" />
+      <button onclick="app.saveVitalOverride()" class="w-full bg-[#00d084] hover:bg-emerald-400 text-black font-mono text-[11px] font-bold py-4 rounded-xl transition-all shadow-lg uppercase tracking-wider">SAVE DIAGNOSTIC VALUE</button>
+      <button onclick="app.clearVitalOverride()" class="w-full bg-transparent border border-white/10 hover:bg-white/5 text-red-400 hover:text-red-300 font-mono text-[10px] py-3 rounded-xl transition-all uppercase tracking-wider mt-3">RESET TO baseline</button>
+      <button onclick="app.closeVitalOverrideModal()" class="w-full text-zinc-500 hover:text-white font-mono text-[10px] py-2 transition-all uppercase tracking-wider mt-2 bg-transparent border-none cursor-pointer">Cancel</button>
+    </div>
+  </div>
+
+  <!-- MANUAL DIAGNOSIS ENTRY MODAL -->
+  <div id="manualDiagnosisModal" style="display:none;" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="app.closeManualDiagnosisModal(event)">
+    <div class="bg-[#121214] border border-white/10 rounded-3xl p-8 max-w-lg w-full shadow-2xl relative overflow-hidden animate-[fadeInUp_0.3s_ease_both]" onclick="event.stopPropagation()">
+      <h2 class="font-bebas text-3xl tracking-wider text-white mb-2">WRITE DIAGNOSIS REPORT</h2>
+      <p class="text-[10px] text-zinc-500 font-mono mb-6">Manually input diagnostic findings, severity, and pricing to save directly to your car history logs.</p>
+      
+      <div class="flex flex-col gap-4 mb-6">
+        <div>
+          <label class="text-[9px] text-zinc-500 uppercase font-bold tracking-wider mb-1.5 block">Symptoms / Driver Complaint</label>
+          <textarea id="manDiagProblem" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-xs outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300 h-20 resize-none" placeholder="Describe symptoms (e.g. Grinding noise when applying brakes...)"></textarea>
+        </div>
+        <div>
+          <label class="text-[9px] text-zinc-500 uppercase font-bold tracking-wider mb-1.5 block">Diagnosis / Root Cause</label>
+          <input type="text" id="manDiagSummary" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-xs outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300" placeholder="E.g. Worn front brake pads & rotors"/>
+        </div>
+        <div>
+          <label class="text-[9px] text-zinc-500 uppercase font-bold tracking-wider mb-1.5 block">Recommended Solution</label>
+          <textarea id="manDiagSolution" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-xs outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300 h-16 resize-none" placeholder="E.g. Swapped front pads and machined rotors..."></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[9px] text-zinc-500 uppercase font-bold tracking-wider mb-1.5 block">Estimated Cost</label>
+            <input type="text" id="manDiagCost" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-xs outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300" placeholder="E.g. $180 - $250" />
+          </div>
+          <div>
+            <label class="text-[9px] text-zinc-500 uppercase font-bold tracking-wider mb-1.5 block">Severity Level</label>
+            <select id="manDiagSeverity" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-xs outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300 cursor-pointer">
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="CRITICAL">Critical</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <button onclick="app.saveManualDiagnosisReport()" class="w-full bg-[#00d084] hover:bg-emerald-400 text-black font-mono text-[11px] font-bold py-4 rounded-xl transition-all shadow-lg uppercase tracking-wider">SAVE DIAGNOSIS TO HISTORY</button>
+      <button onclick="app.closeManualDiagnosisModal()" class="w-full text-zinc-500 hover:text-white font-mono text-[10px] py-2 transition-all uppercase tracking-wider mt-2 bg-transparent border-none cursor-pointer">Cancel</button>
+    </div>
+  </div>
+
+  <!-- LOG SERVICE MODAL -->
+  <div id="logServiceModal" style="display:none;" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="app.closeLogServiceModal(event)">
+    <div class="bg-[#121214] border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden animate-[fadeInUp_0.3s_ease_both]" onclick="event.stopPropagation()">
+      <h2 class="font-bebas text-3xl tracking-wider text-white mb-2">LOG LAST SERVICE</h2>
+      <p class="text-[10px] text-zinc-500 font-mono mb-6">Record when you last had a service done so we can track your next due date accurately.</p>
+      
+      <div class="flex flex-col gap-4 mb-6">
+        <div>
+          <label class="text-[9px] text-zinc-500 uppercase font-bold tracking-wider mb-1.5 block">Service Type</label>
+          <select id="logServiceType" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-xs outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300 cursor-pointer">
+            <option value="">Select service type...</option>
+            <option value="oil">🛢️ Oil Change</option>
+            <option value="tireRotation">🛞 Tire Rotation</option>
+            <option value="airFilter">💨 Air Filter</option>
+            <option value="brakes">🛑 Brake Pads</option>
+            <option value="coolant">🌡️ Coolant Flush</option>
+            <option value="transmission">⚙️ Transmission Fluid</option>
+            <option value="sparkPlugs">⚡ Spark Plugs</option>
+            <option value="battery">🔋 Battery Replacement</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[9px] text-zinc-500 uppercase font-bold tracking-wider mb-1.5 block">Odometer Mileage when Done</label>
+          <input class="w-full bg-zinc-900/50 border border-zinc-800 text-white placeholder-zinc-500 px-4 py-3 rounded-xl font-mono text-xs outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300" type="number" id="logServiceMileage" placeholder="Mileage when done (e.g. 42000)"/>
+        </div>
+      </div>
+      <button onclick="app.saveServiceLog()" class="w-full bg-white hover:bg-zinc-200 text-black font-mono text-[11px] font-bold py-4 rounded-xl transition-all shadow-lg uppercase tracking-wider">SAVE SERVICE LOG →</button>
+      <button onclick="app.closeLogServiceModal()" class="w-full text-zinc-500 hover:text-white font-mono text-[10px] py-2 transition-all uppercase tracking-wider mt-2 bg-transparent border-none cursor-pointer">Cancel</button>
+    </div>
+  </div>
+
+  <!-- REPAIR COST PREDICTOR MODAL -->
+  <div id="repairModal" style="display:none;" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="app.closeRepairModal(event)">
+    <div id="repairModalContent" class="bg-[#121214] border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden animate-[fadeInUp_0.3s_ease_both]" onclick="event.stopPropagation()">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
+  <!-- PARTS CHECKOUT MODAL -->
+  <div id="partsCheckoutModal" style="display:none;" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="app.closeCheckoutModal(event)">
+    <div id="partsCheckoutModalContent" class="bg-[#121214] border border-white/10 rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden animate-[fadeInUp_0.3s_ease_both]" onclick="event.stopPropagation()">
+    <!-- Populated dynamically -->
+    </div>
+  </div>
+
+<!-- PARTNER WEB BROWSER MODAL -->
+<div id="partnerBrowserModal" style="display:none;" class="fixed inset-0 z-[110] flex-col bg-black/95 backdrop-blur-md overflow-hidden">
+  <div class="flex justify-between items-center bg-[var(--bg-raised)] border-b border-white/10 px-6 py-4 shrink-0">
+    <div class="flex items-center gap-4">
+      <button onclick="app.closePartnerBrowser()" class="text-white hover:text-blue-400 transition-colors font-mono font-bold text-lg">← Back</button>
+      <span id="partnerBrowserTitle" class="font-bebas text-2xl tracking-wider text-white">Store Browser</span>
+    </div>
+    <div class="flex gap-4">
+      <button onclick="app.refreshPartnerBrowser()" class="text-white/50 hover:text-white transition-colors text-xl">🔄</button>
+      <button onclick="app.closePartnerBrowser()" class="text-white/50 hover:text-white transition-colors text-2xl leading-none">✕</button>
+    </div>
+  </div>
+  <div class="flex-1 w-full h-full relative bg-white">
+    <iframe id="partnerBrowserIframe" src="" class="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"></iframe>
+  </div>
+</div>
+
+<!-- PASSENGER PROMPT MODAL (VIRTUAL TWIN) -->
+<div id="passengerPromptModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);align-items:center;justify-content:center;" onclick="app.closePassengerPrompt(false)">
+  <div style="background:#0a0a0c;border:1px solid rgba(255,255,255,0.1);border-radius:32px;padding:48px 40px;width:90%;max-width:480px;text-align:center;box-shadow:0 30px 60px rgba(0,0,0,0.8);" onclick="event.stopPropagation()">
+    <div style="font-size:64px;margin-bottom:20px;animation:pulse 2s infinite ease-in-out;">🚗</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:2px;color:var(--fg);margin-bottom:12px;">TRIP DETECTED</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:32px;font-family:'Space Mono',monospace;">AutoTriage detected vehicle motion. Are you currently driving your <strong id="promptVehicleName" style="color:#4da6ff;">vehicle</strong>?</div>
+    
+    <div style="display:flex;gap:16px;">
+      <button onclick="app.closePassengerPrompt(true)" style="flex:1;background:#2563eb;color:var(--fg);border:none;padding:20px;border-radius:16px;font-family:'Space Mono',monospace;font-size:14px;font-weight:bold;cursor:pointer;box-shadow:0 10px 25px rgba(37,99,235,0.4);transition:transform 0.2s hover:-translate-y-1;">YES, TRACK IT</button>
+      <button onclick="app.closePassengerPrompt(false)" style="flex:1;background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);padding:20px;border-radius:16px;font-family:'Space Mono',monospace;font-size:14px;cursor:pointer;transition:background 0.2s hover:bg-white/5;">PASSENGER</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRIAGE HELP AI CHAT MODAL -->
+<div id="triageHelpModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);justify-content:flex-end;" onclick="app.closeTriageHelpModal()">
+  <div id="triageHelpContent" style="background:#0a0a0c;border-left:1px solid rgba(255,255,255,0.1);width:90%;max-width:400px;height:100%;padding:32px 24px;transform:translateX(100%);transition:transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <button onclick="app.closeTriageHelpModal()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:white;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:bg 0.2s hover:bg-white/10;">✕</button>
+        <div>
+          <div style="font-size:10px;font-family:'Space Mono',monospace;font-weight:bold;color:#4da6ff;letter-spacing:1.5px;text-transform:uppercase;">AI ASSISTANT</div>
+          <h2 style="font-size:22px;font-weight:bold;color:white;margin:0;letter-spacing:0.5px;">Triage Help</h2>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(77,166,255,0.1);padding:8px 16px;border-radius:24px;border:1px solid rgba(77,166,255,0.2);">
+        <span style="width:8px;height:8px;border-radius:50%;background:#4da6ff;display:inline-block;animation:pulse 1.5s infinite;"></span>
+        <span style="font-size:10px;font-family:'Space Mono',monospace;font-weight:bold;color:#4da6ff;letter-spacing:1.5px;">ONLINE</span>
+      </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="triageHelpMessageStream" style="flex:1;overflow-y:auto;padding-bottom:20px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth;" class="custom-scroll">
+      <!-- Welcome Message -->
+      <div style="display:flex; flex-direction:column; align-items:flex-start;">
+        <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-bottom:6px; font-family:'Space Mono',monospace;">Triage AI • Just now</div>
+        <div style="background:#1c1c1e; border:1px solid rgba(255,255,255,0.1); padding:16px 20px; border-radius:20px 20px 20px 6px; font-size:14px; color:white; line-height:1.6; max-width:85%;">
+          Hello! I am your AutoTriage AI Assistant. If you're confused about how the app works, need help logging a service, or want to understand your telemetry data better, just ask!
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Footer -->
+    <div style="display:flex;gap:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:24px;">
+      <input type="text" id="triageHelpInput" placeholder="Ask a question..." style="flex:1;background:#141517;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:16px 20px;color:white;font-family:'Space Mono',monospace;font-size:13px;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='rgba(77,166,255,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" onkeypress="if(event.key === 'Enter') app.sendTriageHelpMessage()">
+      <button onclick="app.sendTriageHelpMessage()" style="width:52px;height:52px;background:white;color:black;border:none;border-radius:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;transition:transform 0.2s hover:scale-105 active:scale-95;">➤</button>
+    </div>
+  </div>
+</div>
+
+  <script src="js/trip-tracker.js?v=1.11"></script>
+  <script src="js/context.js?v=1.11"></script>
+  <!-- Firebase SDKs (Compat version for Vanilla JS) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script type="module" src="js/config.js?v=1.11"></script>
+  <script src="js/obd.js?v=1.11"></script>
+  <script src="js/theme.js?v=1.11"></script>
+  <script src="js/countries.js?v=1.11"></script>
+  <script src="js/mechanic-api.js"></script>
+  <script src="js/mechanics-data.js"></script>
+  <script src="js/desktop.js?v=1.11"></script>
+  <script type="module" src="dist/autotriage-tools.es.js?v=1.35"></script>
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="bottom-nav md:hidden">
+    <button onclick="app.switchTab('dashboard')" id="nav-dashboard-mob" class="nav-tab active">
+      <div class="nav-tab-icon">🏠</div>
+      <span>Home</span>
+      <div class="nav-indicator"></div>
+    </button>
+    <button onclick="app.switchTab('diagnosis')" id="nav-diagnosis-mob" class="nav-tab">
+      <div class="nav-tab-icon">🧠</div>
+      <span>Scan</span>
+      <div class="nav-indicator"></div>
+    </button>
+    <button onclick="app.switchTab('mechanics')" id="nav-mechanics-mob" class="nav-tab">
+      <div class="nav-tab-icon">🔧</div>
+      <span>Mechs</span>
+      <div class="nav-indicator"></div>
+    </button>
+    <button onclick="app.switchTab('rides')" id="nav-rides-mob" class="nav-tab">
+      <div class="nav-tab-icon">🚗</div>
+      <span>Ride</span>
+      <div class="nav-indicator"></div>
+    </button>
+    <button onclick="app.switchTab('garage')" id="nav-garage-mob" class="nav-tab">
+      <div class="nav-tab-icon">🛠️</div>
+      <span>Garage</span>
+      <div class="nav-indicator"></div>
+    </button>
+    <button onclick="app.switchTab('emergency')" id="nav-emergency-mob" class="nav-tab emergency-tab">
+      <div class="nav-tab-icon">🚨</div>
+      <span>SOS</span>
+      <div class="nav-indicator"></div>
+    </button>
+  </nav>
+</body>
+</html>

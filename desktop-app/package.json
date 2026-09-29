@@ -1,0 +1,96 @@
+{
+  "name": "autotriage",
+  "version": "1.0.0",
+  "description": "AutoTriage - AI Vehicle Diagnosis & Emergency Assistance",
+  "main": "main.js",
+  "author": "AutoTriage",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win --x64",
+    "build-installer": "electron-builder build --win nsis --x64"
+  },
+  "build": {
+    "appId": "com.autotriage.app",
+    "productName": "AutoTriage",
+    "copyright": "Copyright © 2025 AutoTriage",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "app/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../assets",
+        "to": "assets",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../simple.html",
+        "to": "app/simple.html"
+      },
+      {
+        "from": "../app.html",
+        "to": "app/app.html"
+      },
+      {
+        "from": "../css",
+        "to": "app/css",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../js",
+        "to": "app/js",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/logo.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "assets/logo.ico",
+      "uninstallerIcon": "assets/logo.ico",
+      "installerHeaderIcon": "assets/logo.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AutoTriage",
+      "runAfterFinish": true,
+      "installerSidebar": "assets/installer-sidebar.bmp",
+      "uninstallerSidebar": "assets/installer-sidebar.bmp"
+    },
+    "mac": {
+      "icon": "assets/logo.icns",
+      "target": "dmg"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  }
+}

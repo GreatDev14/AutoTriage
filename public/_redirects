@@ -1,0 +1,5 @@
+# Proxy Firebase Auth handler through Netlify to bypass ISP blocks on firebaseapp.com
+/__/auth/*  https://autotriageapp.firebaseapp.com/__/auth/:splat  200
+
+# SPA fallback routing
+/*  /index.html  200

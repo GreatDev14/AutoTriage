@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auto Logo Tracker</title>
+  <style>
+    body { background: #111; color: #fff; font-family: sans-serif; padding: 20px; }
+    #container { position: relative; width: 640px; height: 360px; }
+    video, canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
+    canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+    #log { width: 100%; height: 150px; background: #222; color: #0f0; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>Auto Logo Tracker</h1>
+  <div id="container">
+    <video id="v" src="bros_amke_the_video_a_loop.mp4" muted playsinline></video>
+    <canvas id="c"></canvas>
+  </div>
+  <button id="startBtn">Start Auto-Track</button>
+  <div id="status">Click Start to track...</div>
+  <h3>Tracked Coordinates JSON:</h3>
+  <textarea id="log" readonly></textarea>
+
+  <script>
+    const video = document.getElementById('v');
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const status = document.getElementById('status');
+    const log = document.getElementById('log');
+
+    let w = 640;
+    let h = 360;
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      status.innerText = "Initializing video...";
+      video.pause();
+      
+      // Wait for metadata
+      if (video.videoWidth === 0) {
+        await new Promise(resolve => video.addEventListener('loadedmetadata', resolve, { once: true }));
+      }
+      
+      canvas.width = w;
+      canvas.height = h;
+
+      const duration = video.duration || 10;
+      const step = 0.05; // 20 frames per second
+      const keyframes = [];
+
+      status.innerText = "Tracking... please wait.";
+      
+      for (let t = 0; t <= duration; t += step) {
+        video.currentTime = t;
+        // Wait for seek to complete
+        await new Promise(resolve => video.addEventListener('seeked', resolve, { once: true }));
+        // Extra wait for frame rendering
+        await new Promise(resolve => setTimeout(resolve, 60));
+
+        // Draw frame to canvas
+        ctx.drawImage(video, 0, 0, w, h);
+        
+        // Find logo
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        // Search region for license plate EB logo
+        // Box: X from 200 to 440, Y from 205 to 265
+        const minX = 200;
+        const maxX = 440;
+        const minY = 205;
+        const maxY = 265;
+
+        let points = [];
+        for (let y = minY; y < maxY; y++) {
+          for (let x = minX; x < maxX; x++) {
+            const idx = (y * w + x) * 4;
+            const r = data[idx];
+            const g = data[idx+1];
+            const b = data[idx+2];
+            
+            // Look for white pixels (EB logo)
+            if (r > 200 && g > 200 && b > 200) {
+              points.push({ x, y });
+            }
+          }
+        }
+
+        // Simple clustering: Group pixels that are close together.
+        // We look for a small compact component (width 4-30px, height 4-20px)
+        let components = [];
+        let visited = new Set();
+
+        for (let pt of points) {
+          const key = `${pt.x},${pt.y}`;
+          if (visited.has(key)) continue;
+
+          // BFS to find connected component
+          let comp = [];
+          let queue = [pt];
+          visited.add(key);
+
+          while (queue.length > 0) {
+            const curr = queue.shift();
+            comp.push(curr);
+
+            // Check 4-neighbors
+            const neighbors = [
+              { x: curr.x + 1, y: curr.y },
+              { x: curr.x - 1, y: curr.y },
+              { x: curr.x, y: curr.y + 1 },
+              { x: curr.x, y: curr.y - 1 }
+            ];
+
+            for (let n of neighbors) {
+              if (n.x >= minX && n.x < maxX && n.y >= minY && n.y < maxY) {
+                const nkey = `${n.x},${n.y}`;
+                if (!visited.has(nkey) && points.some(p => p.x === n.x && p.y === n.y)) {
+                  visited.add(nkey);
+                  queue.push(n);
+                }
+              }
+            }
+          }
+
+          if (comp.length > 0) {
+            // Find bounding box
+            const xs = comp.map(p => p.x);
+            const ys = comp.map(p => p.y);
+            const minCx = Math.min(...xs);
+            const maxCx = Math.max(...xs);
+            const minCy = Math.min(...ys);
+            const maxCy = Math.max(...ys);
+            const compW = maxCx - minCx + 1;
+            const compH = maxCy - minCy + 1;
+
+            components.push({
+              x: (minCx + maxCx) / 2,
+              y: (minCy + maxCy) / 2,
+              w: compW,
+              h: compH,
+              size: comp.length
+            });
+          }
+        }
+
+        // Filter components: we want the license plate EB logo.
+        // It is a compact component in the license plate region.
+        // In the rear view, the EB logo is roughly 8-20px wide and 5-15px high.
+        // Let's filter by width, height and size.
+        let logoComp = components.find(c => c.w >= 3 && c.w <= 25 && c.h >= 3 && c.h <= 18);
+
+        if (logoComp) {
+          // Record keyframe
+          keyframes.push({
+            t: parseFloat(t.toFixed(2)),
+            x: parseFloat(logoComp.x.toFixed(1)),
+            y: parseFloat(logoComp.y.toFixed(1)),
+            w: parseFloat(logoComp.w.toFixed(1)),
+            h: parseFloat(logoComp.h.toFixed(1))
+          });
+          
+          // Draw a red circle on preview canvas
+          ctx.strokeStyle = '#f00';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(logoComp.x, logoComp.y, 8, 0, 2 * Math.PI);
+          ctx.stroke();
+        } else {
+          keyframes.push({
+            t: parseFloat(t.toFixed(2)),
+            x: null,
+            y: null
+          });
+        }
+
+        status.innerText = `Tracking: ${Math.round((t / duration) * 100)}% (${t.toFixed(2)}s)`;
+      }
+
+      status.innerText = "Tracking complete!";
+      log.value = JSON.stringify(keyframes);
+      console.log("TRACKING_COMPLETE:", keyframes);
+    });
+  </script>
+</body>
+</html>

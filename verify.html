@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Become a Mechanic | AutoTriage</title>
+  <meta name="description" content="Join the AutoTriage verified mechanic network.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=DM+Serif+Display:ital@0;1&display=swap">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/effects.css">
+  <style>
+    .mechanic-page { min-height: 100vh; background: var(--bg); }
+    .mechanic-hero { min-height: calc(100vh - 72px); padding: 100px 6vw 60px; display: grid; grid-template-columns: minmax(280px, .9fr) minmax(420px, 1fr); gap: 7vw; align-items: start; position: relative; overflow: hidden; }
+    .mechanic-hero::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .45; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(to right, black, transparent 80%); }
+    .mechanic-intro, .application-panel { position: relative; z-index: 1; }
+    .mechanic-intro { max-width: 560px; }
+    .mechanic-kicker, .requirement-number { color: var(--accent); font-size: 10px; letter-spacing: 4px; text-transform: uppercase; }
+    .mechanic-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(70px, 10vw, 148px); line-height: .82; letter-spacing: 1px; margin: 22px 0 30px; }
+    .mechanic-title span { color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,.3); }
+    .mechanic-lead { color: var(--gray); font-family: 'DM Serif Display', serif; font-style: italic; font-size: clamp(18px, 2vw, 25px); line-height: 1.45; max-width: 520px; }
+    .mechanic-note { margin-top: 34px; padding-left: 18px; border-left: 2px solid var(--accent); color: var(--light-gray); font-size: 11px; line-height: 1.9; max-width: 460px; }
+    .application-panel { background: rgba(18,18,21,.82); border: 1px solid var(--border-strong); padding: clamp(26px, 4vw, 46px); box-shadow: var(--shadow-lg); }
+    .application-panel h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(30px, 4vw, 46px); letter-spacing: 2px; margin-bottom: 8px; }
+    .application-panel > p { color: var(--gray); font-size: 11px; line-height: 1.8; margin-bottom: 26px; }
+    .application-form { display: grid; gap: 14px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .fi, .file-input { width: 100%; min-height: 50px; background: rgba(255,255,255,.025); border: 1px solid var(--border); color: var(--fg); padding: 14px 16px; font: 11px 'Space Mono', monospace; outline: none; }
+    .fi:focus, .file-input:focus-within { border-color: var(--accent); }
+    .fi::placeholder { color: var(--gray); opacity: .75; }
+    select.fi { appearance: auto; }
+    select.fi option { color: #000000 !important; background-color: #ffffff !important; font-family: 'Space Mono', monospace; }
+    select.fi option:disabled { color: #888888 !important; }
+    .file-input { display: flex; flex-direction: column; justify-content: center; gap: 7px; color: var(--gray); }
+    .file-input span { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--fg); }
+    .file-input input { font: 10px 'Space Mono', monospace; color: var(--gray); }
+    .form-footnote { color: var(--gray); font-size: 9px; line-height: 1.6; }
+    .group-requirement { padding: 14px 16px; border: 1px solid rgba(37, 211, 102, .35); background: rgba(37, 211, 102, .06); color: var(--light-gray); font-size: 10px; line-height: 1.7; }
+    .group-requirement a { color: #25D366; font-weight: 700; }
+    .group-confirmation { display: flex; align-items: flex-start; gap: 9px; margin-top: 10px; color: var(--fg); }
+    .group-confirmation input { accent-color: #25D366; margin-top: 2px; }
+    .waitlist-button { width: 100%; border: 0; min-height: 54px; background: var(--accent); color: white; font: 700 10px 'Space Mono', monospace; letter-spacing: 3px; cursor: pointer; transition: transform .25s, background .25s; }
+    .waitlist-button:hover { background: #ef3948; transform: translateY(-2px); }
+    .form-status { min-height: 18px; color: var(--success); font-size: 10px; line-height: 1.6; }
+    .requirements { padding: 120px 6vw 140px; border-top: 1px solid var(--border); background: var(--mid); }
+    .requirements-inner { max-width: 1180px; margin: 0 auto; }
+    .requirements-heading { max-width: 700px; margin-bottom: 58px; }
+    .requirements-heading h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(52px, 8vw, 108px); line-height: .9; margin: 18px 0 22px; }
+    .requirements-heading p { color: var(--gray); font-size: 12px; line-height: 1.9; max-width: 580px; }
+    .requirement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .requirement-card { min-height: 310px; padding: 28px; border: 1px solid var(--border); background: rgba(255,255,255,.018); position: relative; }
+    .requirement-card h3 { font-family: 'Bebas Neue', sans-serif; font-size: 29px; letter-spacing: 1px; margin: 54px 0 18px; }
+    .requirement-card p { color: var(--gray); font-size: 11px; line-height: 1.9; }
+    .requirement-card ul { margin-top: 16px; padding-left: 16px; color: var(--light-gray); font-size: 10px; line-height: 1.9; }
+    .requirement-card::after { content: ''; position: absolute; left: 28px; right: 28px; bottom: 0; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .35s; }
+    .requirement-card:hover::after { transform: scaleX(1); }
+    .process-line { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--gray); font-size: 10px; letter-spacing: 1px; line-height: 2; }
+    .process-line strong { color: var(--fg); }
+    .mechanic-footer { padding: 32px 6vw; border-top: 1px solid var(--border); color: var(--gray); font-size: 11px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+    .back-home-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, rgba(255, 51, 51, 0.16) 0%, rgba(255, 51, 51, 0.06) 100%);
+      border: 1.5px solid #ff3333;
+      border-radius: 12px;
+      color: #ffffff !important;
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(255, 51, 51, 0.25);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+    .back-home-btn:hover {
+      background: linear-gradient(135deg, #ff3333 0%, #d60000 100%);
+      color: #ffffff !important;
+      transform: translateX(-4px);
+      box-shadow: 0 8px 30px rgba(255, 51, 51, 0.5);
+      border-color: #ff6666;
+    }
+    .back-home-btn svg {
+      transition: transform 0.25s ease;
+    }
+    .back-home-btn:hover svg {
+      transform: translateX(-3px);
+    }
+    .hero-back-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      color: #ffffff;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      width: fit-content;
+    }
+    .hero-back-badge:hover {
+      background: rgba(255, 51, 51, 0.15);
+      border-color: #ff3333;
+      color: #ff3333;
+      transform: translateX(-3px);
+    }
+    .mob-back-btn {
+      font-weight: 700 !important;
+      color: #ff3333 !important;
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(255, 51, 51, 0.1);
+      border: 1px solid rgba(255, 51, 51, 0.3);
+      border-radius: 8px;
+      margin-bottom: 4px;
+    }
+    @media (max-width: 850px) { .mechanic-hero { grid-template-columns: 1fr; padding-top: 80px; } .mechanic-intro { max-width: 680px; } .mechanic-title { font-size: clamp(72px, 18vw, 132px); } .requirement-grid { grid-template-columns: 1fr; } .requirement-card { min-height: auto; } }
+    @media (max-width: 560px) { .mechanic-hero, .requirements { padding-left: 20px; padding-right: 20px; } .form-row { grid-template-columns: 1fr; } .mechanic-footer { padding-left: 20px; padding-right: 20px; flex-direction: column; } }
+  
+    /* WELCOME CARD STATUS - BIG VIBRANT WELCOME VIBE */
+    .welcome-card {
+      margin-top: 26px;
+      padding: 32px 24px;
+      background: linear-gradient(135deg, rgba(37, 211, 102, 0.12) 0%, rgba(18, 18, 21, 0.95) 100%);
+      border: 1.5px solid #25D366;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 12px 45px rgba(37, 211, 102, 0.25);
+      animation: welcomeFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    @keyframes welcomeFadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .welcome-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(37, 211, 102, 0.18);
+      border: 1px solid rgba(37, 211, 102, 0.4);
+      color: #25D366;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 18px;
+      border-radius: 50px;
+      margin-bottom: 16px;
+    }
+    .welcome-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(34px, 6vw, 48px);
+      letter-spacing: 1.5px;
+      color: #ffffff;
+      margin: 0 0 12px;
+      line-height: 1;
+    }
+    .welcome-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.85);
+      max-width: 520px;
+      margin: 0 auto 24px;
+    }
+    .welcome-whatsapp-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: #25D366;
+      color: #000000 !important;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 16px 32px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(37, 211, 102, 0.45);
+      transition: all 0.25s;
+    }
+    .welcome-whatsapp-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(37, 211, 102, 0.6);
+    }
+
+  </style>
+  <script>
+    // Clean URL so address bar displays /mechanics instead of /mechanics.html
+    if (window.location.pathname.endsWith('/mechanics.html') || window.location.pathname.endsWith('/verify.html')) {
+      window.history.replaceState(null, '', '/mechanics' + window.location.search + window.location.hash);
+    }
+  </script>
+</head>
+<body>
+  <div class="mechanic-page">
+            <nav id="navbar">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/logo-transparent.png" alt="AutoTriage Logo">
+        <div class="nav-brand-box"><span class="brand-auto">AUTO</span><span class="brand-triage">TRIAGE</span></div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="index.html#how">How It Works</a></li>
+        <li><a href="/mechanics">Mechanics</a></li>
+        <li><a href="index.html#download">Coming Soon</a></li>
+      </ul>
+      <div class="nav-right-area">
+        <div class="nav-links-auth">
+          <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'})">JOIN THE WAITLIST</button>
+        </div>
+        <div class="nav-mobile-toggle" onclick="toggleMobileMenu()">
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <div id="mobileMenu" class="mobile-overlay">
+      <div class="mob-close" onclick="toggleMobileMenu()">✕</div>
+      <div class="mob-links">
+        <a href="index.html#about" onclick="toggleMobileMenu()">About</a>
+        <a href="index.html#how" onclick="toggleMobileMenu()">How It Works</a>
+        <a href="/mechanics" onclick="toggleMobileMenu()">Mechanics</a>
+        <a href="index.html#download" onclick="toggleMobileMenu()">Coming Soon</a>
+        <div class="mob-divider"></div>
+        <a href="index.html" class="mob-back-btn" onclick="toggleMobileMenu()">← Back to AutoTriage</a>
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+          <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'}); toggleMobileMenu();" style="width:100%; padding:13px; font-size:11px; text-align:center;">JOIN THE WAITLIST</button>
+        </div>
+      </div>
+    </div>
+    <main>
+      <section class="mechanic-hero">
+        <div class="mechanic-intro">
+          <a href="index.html" class="hero-back-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            BACK TO AUTOTRIAGE
+          </a>
+          <div class="mechanic-kicker">Join the verified network</div>
+          <h1 class="mechanic-title">EARN WITH<br><span>AUTO TRIAGE</span></h1>
+          <p class="mechanic-lead">Bring your workshop into the network built for drivers who need the right help, right now.</p>
+          <p class="mechanic-note">Join the waitlist to start verification. Once your details and documents are reviewed, your workshop can receive trusted repair leads from AutoTriage drivers.</p>
+        </div>
+
+        <div class="application-panel">
+          <h2>JOIN THE WAITLIST</h2>
+          <p>Tell us about your workshop. We will contact you on WhatsApp when your verification review is ready.</p>
+          <form class="application-form" id="mechanicApplicationForm">
+            <div class="form-row"><input class="fi" name="name" type="text" placeholder="OWNER / FULL NAME *" required><input class="fi" name="workshop" type="text" placeholder="WORKSHOP NAME *" required></div>
+            <div class="form-row"><input class="fi" name="phone" type="tel" placeholder="ACTIVE PHONE NUMBER *" required><input class="fi" name="whatsapp" type="tel" placeholder="WHATSAPP NUMBER *" required></div>
+            <div class="form-row"><input class="fi" name="email" type="email" placeholder="EMAIL ADDRESS"><input class="fi" name="city" type="text" placeholder="CITY / LOCATION *" required></div>
+            <select class="fi" name="specialization" required><option value="" selected disabled>SELECT SPECIALIZATION *</option><option>General Mechanic</option><option>Engine Specialist</option><option>Auto Electrician</option><option>Brake Specialist</option><option>AC Specialist</option><option>Transmission Specialist</option><option>Tire Shop</option></select>
+            <input class="fi" name="area" type="text" placeholder="AREA / NEIGHBOURHOOD *" required>
+            <input class="fi" name="landmark" type="text" placeholder="LANDMARK DESCRIPTION *" required>
+            <div class="group-requirement"><strong>WHATSAPP GROUP REQUIRED</strong><br>All AutoTriage mechanics communicate through the specialist group. <a href="https://chat.whatsapp.com/BlN87SABMVi7NIeypkypr9?s=sh&amp;p=i&amp;mlu=4&amp;ilr=4" target="_blank" rel="noopener">Join the specialist WhatsApp group</a> before submitting.</div>
+            <label class="group-confirmation"><input name="groupJoined" type="checkbox" value="yes" required> I have joined the AutoTriage Specialist WhatsApp group and agree to receive mechanic network updates there.</label>
+            <p class="form-footnote">By joining the waitlist, you confirm that the details belong to your workshop and may be reviewed for mechanic verification.</p>
+            <button class="waitlist-button" type="submit">JOIN MECHANIC WAITLIST -></button>
+            <div class="form-status" id="formStatus" role="status" aria-live="polite"></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="requirements">
+        <div class="requirements-inner">
+          <div class="requirements-heading"><div class="mechanic-kicker">Verification requirements</div><h2>READY TO<br>GET VERIFIED?</h2><p>AutoTriage verifies every mechanic before drivers see their profile. This protects your reputation, protects drivers, and keeps the network dependable.</p></div>
+          <div class="requirement-grid">
+            <article class="requirement-card"><div class="requirement-number">01 / Identity</div><h3>Valid means of verification</h3><p>We need a reliable identity check so every profile is connected to a real, accountable workshop owner or lead technician.</p><ul><li>NIN or BVN</li><li>Another accepted government-issued ID</li><li>Your submitted details must match your application</li></ul></article>
+            <article class="requirement-card"><div class="requirement-number">02 / Workshop</div><h3>Workshop and tools verification</h3><p>Your workspace should be ready to handle the jobs you accept through the network, with the tools and equipment that match your specialty.</p><ul><li>Certificate of Registration or Incorporation</li><li>CAC Application Form where registration is pending</li><li>Workshop and core diagnostic tools may be checked</li></ul></article>
+            <article class="requirement-card"><div class="requirement-number">03 / Contact</div><h3>An active WhatsApp phone</h3><p>Repair leads and verification updates move quickly. Your phone must be active and reachable so AutoTriage can contact you when it matters.</p><ul><li>Working phone number</li><li>Active WhatsApp line</li><li>Keep your location and availability current</li></ul></article>
+          </div>
+          <div class="process-line"><strong>WHAT HAPPENS NEXT:</strong> submit your details -> our team reviews your identity and workshop information -> we contact you on WhatsApp -> verified mechanics receive a trusted profile and relevant repair leads.</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mechanic-footer">
+      <span>AUTOTRIAGE / MECHANICS NETWORK</span>
+      <a href="index.html" class="back-home-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Back to AutoTriage
+      </a>
+    </footer>
+  </div>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script>
+    function toggleMobileMenu() {
+      var menu = document.getElementById('mobileMenu');
+      if (menu) {
+        menu.classList.toggle('active');
+        document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : '';
+      }
+    }
+    var SPECIALIST_GROUP_LINK = 'https://chat.whatsapp.com/BlN87SABMVi7NIeypkypr9?s=sh&p=i&mlu=4&ilr=4';
+    document.getElementById('mechanicApplicationForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      var form = event.currentTarget;
+      var status = document.getElementById('formStatus');
+      var button = form.querySelector('button');
+      var data = Object.fromEntries(new FormData(form).entries());
+      button.disabled = true;
+      button.textContent = 'SUBMITTING...';
+      status.innerHTML = '';
+
+      var payload = { 
+        name: data.name, 
+        workshop: data.workshop, 
+        phone: data.phone, 
+        wa: data.whatsapp, 
+        email: data.email, 
+        address: data.area + ', ' + data.landmark + ', ' + data.city, 
+        area: data.area, 
+        landmark: data.landmark, 
+        city: data.city, 
+        spec: data.specialization, 
+        waitlist: true 
+      };
+
+      // 1. Save data (Try Firebase, with reliable localStorage backup)
+      try {
+        if (window.FirebaseDB) {
+          await window.FirebaseDB.collection('mechanic_waitlist').add(Object.assign({}, payload, {
+            status: 'pending_verification',
+            onboarding: 'waitlist_joined_with_group',
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }));
+          console.log('[AutoTriage] Saved to Firebase collection mechanic_waitlist');
+        } else {
+          var applications = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
+          applications.push(Object.assign({}, payload, { submittedAt: new Date().toISOString() }));
+          localStorage.setItem('at_mechanic_waitlist', JSON.stringify(applications));
+        }
+      } catch (dbErr) {
+        console.warn('[AutoTriage] Database save note:', dbErr.message);
+        var applications = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
+        applications.push(Object.assign({}, payload, { submittedAt: new Date().toISOString() }));
+        localStorage.setItem('at_mechanic_waitlist', JSON.stringify(applications));
+      }
+
+      // 2. ALWAYS dispatch Welcome Email with Specialist WhatsApp Group link
+      var emailSent = false;
+      if (data.email) {
+        try {
+          var emailEndpoint = window.location.protocol === 'file:'
+            ? 'http://localhost:8080/api/send-email'
+            : '/.netlify/functions/send-email';
+          var emailResponse = await fetch(emailEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              to: data.email, 
+              name: data.name, 
+              phone: data.phone, 
+              spec: data.specialization, 
+              city: data.city, 
+              groupLink: SPECIALIST_GROUP_LINK 
+            })
+          });
+          if (emailResponse.ok) {
+            emailSent = true;
+            console.log('[AutoTriage] Welcome email dispatched via serverless function!');
+          }
+        } catch (emailError) {
+          console.warn('[AutoTriage] Function send-email note:', emailError.message);
+        }
+
+        // Direct Brevo fallback if function was blocked or offline
+        if (!emailSent) {
+          try {
+            var directRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'api-key': 'YOUR_BREVO_API_KEY'
+              },
+              body: JSON.stringify({
+                sender: { name: 'AutoTriage', email: 'support@autotriage.app' },
+                to: [{ email: data.email, name: data.name }],
+                subject: 'Welcome to the AutoTriage Specialist Waitlist, ' + data.name + '!',
+                htmlContent: '<!DOCTYPE html><html><body style="margin:0;padding:24px;background:#0b0d14;font-family:Arial,sans-serif;color:#fff;">'
+                  + '<div style="max-width:540px;margin:0 auto;background:#131622;border:1px solid #25D366;border-radius:18px;padding:32px;text-align:center;">'
+                  + '<div style="font-size:52px;margin-bottom:12px;">🎉</div>'
+                  + '<h1 style="color:#25D366;margin:0 0 10px;font-size:26px;">WELCOME TO AUTOTRIAGE, ' + data.name.toUpperCase() + '!</h1>'
+                  + '<p style="color:#bbb;font-size:14px;line-height:1.6;">Your <strong>' + data.specialization + '</strong> workshop in <strong>' + data.city + '</strong> is officially on the mechanic waitlist!</p>'
+                  + '<div style="margin:24px 0;padding:20px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);border-radius:12px;">'
+                  + '<p style="margin:0 0 12px;color:#fff;font-size:13px;font-weight:bold;">⚡ REQUIRED SPECIALIST GROUP</p>'
+                  + '<a href="' + SPECIALIST_GROUP_LINK + '" style="display:inline-block;background:#25D366;color:#000;padding:14px 24px;border-radius:10px;font-weight:bold;text-decoration:none;font-size:13px;">JOIN SPECIALIST WHATSAPP GROUP &rarr;</a>'
+                  + '</div>'
+                  + '<p style="font-size:12px;color:#888;">Questions? Email support@autotriage.app</p>'
+                  + '</div></body></html>'
+              })
+            });
+            if (directRes.ok) emailSent = true;
+          } catch (e2) {
+            console.warn('[AutoTriage] Direct Brevo fallback note:', e2.message);
+          }
+        }
+      }
+
+      // 3. Render BIG VIBRANT CELEBRATORY WELCOME CARD (Image 2 Redesign)
+      var emailNotice = data.email 
+        ? "We've dispatched your welcome package & WhatsApp invite link to <strong style='color:#fff; text-decoration: underline;'>" + data.email + "</strong>."
+        : "Your workshop details are recorded on our verified roster.";
+
+      status.innerHTML = `
+        <div class="welcome-card">
+          <div style="font-size: 52px; margin-bottom: 8px;">🎉</div>
+          <div class="welcome-badge">⚡ OFFICIAL APPLICATION RECEIVED</div>
+          <h3 class="welcome-title">WELCOME, <span style="color: #25D366;">${data.name.toUpperCase()}</span>!</h3>
+          <p class="welcome-text">
+            Your <strong>${data.specialization}</strong> workshop (<strong>${data.workshop}</strong>, ${data.city}) is now officially on the AutoTriage priority queue.<br><br>
+            ${emailNotice}
+          </p>
+          <div style="margin-top: 10px;">
+            <a href="${SPECIALIST_GROUP_LINK}" target="_blank" rel="noopener" class="welcome-whatsapp-btn">
+              <span>👉 JOIN SPECIALIST WHATSAPP GROUP NOW &rarr;</span>
+            </a>
+          </div>
+          <p style="font-family: 'Space Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 16px;">
+            Immediate access granted. Tap above to enter the group.
+          </p>
+        </div>
+      `;
+
+      form.reset();
+      button.disabled = false;
+      button.textContent = 'JOIN MECHANIC WAITLIST ->';
+      status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  </script>
+<script src="js/auth.js"></script>
+</body>
+</html>

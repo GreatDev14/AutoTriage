@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Icon Generator</title>
+<style>
+  body { background:#111; font-family:sans-serif; color:#fff; padding:24px; }
+  .wrap { display:flex; gap:40px; align-items:flex-start; flex-wrap:wrap; }
+  .item { text-align:center; }
+  p { font-size:11px; color:#666; margin:8px 0 4px; }
+  button { background:#f5f5f0; color:#000; border:none; padding:8px 16px; font-size:11px; font-weight:700; cursor:pointer; width:100%; }
+  button:hover { background:#ddd; }
+  #dlAll { background:#44ff88; color:#000; border:none; padding:14px 32px; font-size:14px; font-weight:700; cursor:pointer; margin-top:32px; display:block; }
+</style>
+</head>
+<body>
+<h2 style="margin-bottom:4px;">Auto Triage — Icon Generator</h2>
+<p style="color:#555;margin-bottom:24px;">Click "Download ALL" then move the files into your <code>assets/</code> folder.</p>
+
+<div class="wrap" id="wrap"></div>
+<button id="dlAll">⬇ Download ALL Icons</button>
+
+<script>
+const ICONS = [
+  { size: 192, name: 'icon-192.png' },
+  { size: 512, name: 'icon-512.png' }
+];
+
+function draw(canvas, size) {
+  const ctx = canvas.getContext('2d');
+  // Background
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, size, size);
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = size * 0.015;
+  const b = size * 0.05;
+  ctx.strokeRect(b, b, size - b*2, size - b*2);
+  // AUTO
+  ctx.fillStyle = '#f5f5f0';
+  ctx.font = `900 ${size * 0.35}px Arial Black, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('AUTO', size/2, size * 0.4);
+  // TRIAGE
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.font = `700 ${size * 0.13}px Arial, sans-serif`;
+  ctx.fillText('TRIAGE', size/2, size * 0.63);
+  // Green dot
+  ctx.fillStyle = '#44ff88';
+  ctx.beginPath();
+  ctx.arc(size/2, size * 0.82, size * 0.035, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function download(canvas, name) {
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+const wrap = document.getElementById('wrap');
+
+ICONS.forEach(({ size, name }) => {
+  const display = Math.min(size, 180);
+  const div = document.createElement('div');
+  div.className = 'item';
+  div.innerHTML = `
+    <canvas width="${size}" height="${size}" style="width:${display}px;height:${display}px;border:1px solid #222;"></canvas>
+    <p>${name} (${size}×${size})</p>
+    <button>⬇ Download</button>
+  `;
+  const canvas = div.querySelector('canvas');
+  draw(canvas, size);
+  div.querySelector('button').onclick = () => download(canvas, name);
+  wrap.appendChild(div);
+});
+
+document.getElementById('dlAll').onclick = () => {
+  document.querySelectorAll('canvas').forEach((canvas, i) => {
+    setTimeout(() => download(canvas, ICONS[i].name), i * 400);
+  });
+};
+</script>
+</body>
+</html>

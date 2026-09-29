@@ -1,0 +1,44 @@
+{
+  "id": "autotriage-simple",
+  "name": "Auto Triage — Simple",
+  "short_name": "AutoTriage",
+  "description": "AI vehicle diagnosis, mechanic finder and emergency assistance worldwide.",
+  "start_url": "/app.html?standalone=true",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["automotive", "utilities"],
+  "screenshots": [
+    {
+      "src": "assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "AutoTriage AI Diagnosis"
+    },
+    {
+      "src": "assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "AutoTriage AI Diagnosis"
+    }
+  ]
+}

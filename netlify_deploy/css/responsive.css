@@ -1,0 +1,44 @@
+@media (max-width:1200px) {
+  #navbar { padding:18px 28px; }
+  section { padding:90px 28px; }
+  .mech-grid,.spec-grid { grid-template-columns:1fr 1fr; }
+  .feat-row { grid-template-columns:repeat(2,1fr); }
+  .ft-top { grid-template-columns:1fr 1fr; gap:40px; }
+  .diag-layout,.ride-layout { gap:48px; }
+}
+@media (max-width:900px) {
+  #navbar { padding:16px 20px; }
+  .nav-links { display:none; }
+  .location-badge { right:100px; font-size:8px; }
+  section { padding:80px 20px; }
+  #hero { padding:100px 20px 60px; }
+  .hero-stats { display:none; }
+  .s-title { font-size:clamp(32px,5vw,60px); margin-bottom:36px; }
+  .diag-layout,.ride-layout { grid-template-columns:1fr; gap:40px; }
+  .mech-controls { flex-direction:column; }
+  .mech-grid,.spec-grid { grid-template-columns:1fr; }
+  .feat-row { grid-template-columns:1fr 1fr; }
+  .mech-join-section { grid-template-columns:1fr; gap:40px; }
+  .store-btns { flex-direction:column; align-items:center; }
+  .ft-top { grid-template-columns:1fr 1fr; gap:32px; }
+  .ft-bot { flex-direction:column; gap:20px; }
+  .ng-emergency-bar { padding:16px 20px; flex-direction:column; gap:12px; text-align:center; }
+  .ng-em-nums { flex-wrap:wrap; justify-content:center; }
+  .ride-type-grid { grid-template-columns:1fr; }
+  .provider-row { flex-direction:column; }
+}
+@media (max-width:600px) {
+  .nav-logo { font-size:18px; }
+  .nav-brand-box { display: flex !important; }
+  .nav-cta { font-size:8px; padding:8px 14px; }
+  .hero-title { font-size:clamp(48px,9vw,90px); }
+  .hero-logo-center img { height: 70px; width: 70px; padding: 10px; }
+  .hero-btns { flex-direction:column; gap: 12px; }
+  .btn-p,.btn-s { width:100%; padding:12px 24px; text-align: center; }
+  section { padding:60px 16px; }
+  .mech-card,.sc { padding:20px 16px; }
+  .mech-name,.sc-name { font-size:18px; }
+  .dl-title { font-size:clamp(40px,9vw,80px); }
+  .feat-row { grid-template-columns:1fr; }
+  .ft-top { grid-template-columns:1fr; text-align: center; }
+}

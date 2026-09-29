@@ -1,0 +1,287 @@
+<div id="rides" class="screen">
+  <div class="screen-header">
+    <button class="back-btn" onclick="goTo('home')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg></button>
+    <div class="screen-name"> GET A RIDE</div>
+    <div id="ride-live-badge" style="margin-left:auto;font-size:9px;letter-spacing:2px;color:#00d084;border:1px solid rgba(0,208,132,0.3);padding:4px 10px;border-radius:20px;display:none;"> LIVE</div>
+  </div>
+  <div class="screen-body relative h-full w-full" style="padding:0; overflow:hidden; background:#000000;">
+    <!-- VIP SHOWCASE (INITIAL STATE) -->
+    <style>
+      @keyframes mobVipIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+      .mpcard {
+        position:relative;
+        background:linear-gradient(135deg,#0d0d11,#111117);
+        border:1px solid rgba(255,255,255,0.07);
+        border-radius:16px;
+        padding:16px 10px 12px;
+        display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:9px;
+        cursor:pointer; overflow:hidden;
+        transition:transform 0.3s cubic-bezier(.4,0,.2,1), box-shadow 0.3s ease;
+        animation: mobVipIn 0.4s ease both;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mpcard:active { transform:scale(0.95); }
+      .mpcard .mpicon {
+        width:58px; height:58px; border-radius:14px;
+        display:flex; align-items:center; justify-content:center;
+        transition:transform 0.3s ease;
+        flex-shrink:0;
+      }
+      .mpcard:active .mpicon { transform:scale(0.9) rotate(-3deg); }
+      .mpcard .mplabel {
+        font-size:10px; font-weight:800; letter-spacing:3px;
+        color:rgba(255,255,255,0.6); text-transform:uppercase;
+        font-family:'Courier New',monospace;
+      }
+      .mpcard .mpnum {
+        position:absolute; top:8px; right:10px;
+        font-size:8px; font-family:monospace; color:rgba(255,255,255,0.1);
+      }
+      .mpcard:nth-child(1){animation-delay:0.04s}
+      .mpcard:nth-child(2){animation-delay:0.09s}
+      .mpcard:nth-child(3){animation-delay:0.14s}
+      .mpcard:nth-child(4){animation-delay:0.19s}
+      .mpcard:nth-child(5){animation-delay:0.24s}
+      .mpcard:nth-child(6){animation-delay:0.29s}
+    </style>
+    <div id="mobVipShowcase" class="absolute inset-0 z-50 flex flex-col items-center overflow-y-auto transition-all duration-700" style="padding:12px 12px 28px; background: radial-gradient(circle at 50% 25%, #252528 0%, #050505 100%);">
+
+      <!-- Cinematic Video Backdrop: masked container removes all square boundaries; screen blend merges car onto the ash background -->
+      <div style="width:100%;position:relative;flex-shrink:0;margin-bottom:-16px; -webkit-mask-image:radial-gradient(ellipse at 50% 65%, rgba(0,0,0,1) 20%, rgba(0,0,0,0) 65%); mask-image:radial-gradient(ellipse at 50% 65%, rgba(0,0,0,1) 20%, rgba(0,0,0,0) 65%);">
+        <video src="bros_amke_the_video_a_loop.mp4" autoplay loop muted playsinline
+          style="width:100%;display:block;mix-blend-mode:screen;filter:contrast(1.2) brightness(1.2);"></video>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:linear-gradient(to bottom,transparent,rgba(5,5,5,1));z-index:2;pointer-events:none;"></div>
+      </div>
+
+      <!-- Headline -->
+      <div style="text-align:center;position:relative;z-index:3;margin-top:10px;margin-bottom:20px;flex-shrink:0;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:4px;color:white;line-height:1;text-shadow:0 0 40px rgba(255,255,255,0.15);">SELECT PROVIDER</div>
+        <div style="font-size:9px;color:#00d084;font-family:'Courier New',monospace;letter-spacing:4px;text-transform:uppercase;margin-top:5px;">THE ULTIMATE DISPATCH ENGINE AWAITS</div>
+        <div style="width:60px;height:1px;background:linear-gradient(90deg,transparent,#00d084,transparent);margin:8px auto 0;"></div>
+      </div>
+
+      <!-- 2-col Provider Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;flex-shrink:0;">
+
+        <!-- UBER -->
+        <button class="mpcard" onclick="mobActivateDispatchEngine('Uber')"
+          ontouchstart="this.style.boxShadow='0 12px 40px rgba(255,255,255,0.12),0 0 0 1px rgba(255,255,255,0.3)'"
+          ontouchend="this.style.boxShadow='none'">
+          <div class="mpnum">01</div>
+          <div class="mpicon" style="background:#000;border:1px solid rgba(255,255,255,0.15);">
+            <img src="https://cdn.simpleicons.org/uber/white" style="width:30px;height:30px;" alt="Uber"/>
+          </div>
+          <div class="mplabel">UBER</div>
+        </button>
+
+        <!-- LYFT -->
+        <button class="mpcard" onclick="mobActivateDispatchEngine('Lyft')"
+          ontouchstart="this.style.boxShadow='0 12px 40px rgba(255,0,191,0.2),0 0 0 1px rgba(255,0,191,0.5)'"
+          ontouchend="this.style.boxShadow='none'">
+          <div class="mpnum">02</div>
+          <div class="mpicon" style="background:#FF00BF;box-shadow:0 6px 16px rgba(255,0,191,0.35);">
+            <img src="https://cdn.simpleicons.org/lyft/white" style="width:30px;height:30px;" alt="Lyft"/>
+          </div>
+          <div class="mplabel">LYFT</div>
+        </button>
+
+        <!-- BOLT -->
+        <button class="mpcard" onclick="mobActivateDispatchEngine('Bolt')"
+          ontouchstart="this.style.boxShadow='0 12px 40px rgba(52,209,134,0.2),0 0 0 1px rgba(52,209,134,0.5)'"
+          ontouchend="this.style.boxShadow='none'">
+          <div class="mpnum">03</div>
+          <div class="mpicon" style="background:#34D186;box-shadow:0 6px 16px rgba(52,209,134,0.35);">
+            <svg viewBox="0 0 24 24" style="width:30px;height:30px;" fill="#fff"><path d="M13.2 0L3.6 14.4h6l-2.4 9.6L16.8 9.6h-6z"/></svg>
+          </div>
+          <div class="mplabel">BOLT</div>
+        </button>
+
+        <!-- DiDi -->
+        <button class="mpcard" onclick="mobActivateDispatchEngine('DiDi')"
+          ontouchstart="this.style.boxShadow='0 12px 40px rgba(255,122,0,0.2),0 0 0 1px rgba(255,122,0,0.5)'"
+          ontouchend="this.style.boxShadow='none'">
+          <div class="mpnum">04</div>
+          <div class="mpicon" style="background:#FF6900;box-shadow:0 6px 16px rgba(255,105,0,0.35);">
+            <svg viewBox="0 0 32 32" style="width:32px;height:32px;" fill="none">
+              <path d="M6 8h8c5.523 0 10 4.477 10 10S19.523 28 14 28H6V8z" stroke="white" stroke-width="3" fill="none"/>
+              <path d="M23 8h3v20h-3z" fill="white"/>
+            </svg>
+          </div>
+          <div class="mplabel">DiDi</div>
+        </button>
+
+        <!-- GRAB -->
+        <button class="mpcard" onclick="mobActivateDispatchEngine('Grab')"
+          ontouchstart="this.style.boxShadow='0 12px 40px rgba(0,177,79,0.2),0 0 0 1px rgba(0,177,79,0.5)'"
+          ontouchend="this.style.boxShadow='none'">
+          <div class="mpnum">05</div>
+          <div class="mpicon" style="background:#00B14F;box-shadow:0 6px 16px rgba(0,177,79,0.35);">
+            <img src="https://cdn.simpleicons.org/grab/white" style="width:30px;height:30px;" alt="Grab"/>
+          </div>
+          <div class="mplabel">GRAB</div>
+        </button>
+
+        <!-- InDrive -->
+        <button class="mpcard" onclick="mobActivateDispatchEngine('InDrive')"
+          ontouchstart="this.style.boxShadow='0 12px 40px rgba(45,190,96,0.2),0 0 0 1px rgba(45,190,96,0.5)'"
+          ontouchend="this.style.boxShadow='none'">
+          <div class="mpnum">06</div>
+          <div class="mpicon" style="background:#1a1a1a;border:2px solid #2DBE60;box-shadow:0 6px 16px rgba(45,190,96,0.3);">
+            <svg viewBox="0 0 40 28" style="width:36px;height:26px;" fill="none">
+              <text x="2" y="22" font-family="Arial Black,Arial,sans-serif" font-size="20" font-weight="900" fill="#2DBE60">iD</text>
+            </svg>
+          </div>
+          <div class="mplabel">INDRIVE</div>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- DUAL-PANE DISPATCH ENGINE (MOBILE STACKED) -->
+    <div id="mobDispatchEnginePane" class="flex flex-col h-full w-full transform translate-y-full opacity-0 transition-all duration-700 pointer-events-none absolute inset-0 z-40 bg-[#0a0a0c]">
+      
+      <!-- MAP HUD (TOP HALF ON MOBILE) -->
+      <div class="w-full h-[40%] relative overflow-hidden bg-[#0a0a0c] border-b border-white/5 order-1 flex-shrink-0" id="mobRideMapHudContainer">
+        <div class="absolute inset-0 opacity-30" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 40px 40px; transform: perspective(500px) rotateX(60deg) scale(2); transform-origin: top center;"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
+          <div class="w-24 h-24 border border-[#00d084]/30 rounded-full flex items-center justify-center animate-pulse relative">
+            <div class="w-16 h-16 border border-[#00d084]/50 rounded-full flex items-center justify-center relative">
+              <div class="w-2 h-2 bg-[#00d084] rounded-full shadow-[0_0_15px_rgba(0,208,132,1)] z-10"></div>
+            </div>
+          </div>
+        </div>
+        <button onclick="mobResetDispatch()" class="absolute top-4 left-4 z-20 bg-black/60 backdrop-blur border border-white/10 text-white px-3 py-1.5 rounded-full shadow-lg font-mono text-[10px] uppercase tracking-widest cursor-pointer hover:bg-black/80 transition-all"></button>
+      </div>
+
+      <!-- BOOKING ENGINE (BOTTOM HALF ON MOBILE) -->
+      <div id="mobRideLeftPane" class="w-full h-[60%] overflow-y-auto custom-scroll p-4 bg-[#0a0a0c] relative z-10 flex flex-col transition-all duration-300 order-2 pb-32 flex-shrink-0">
+        <div class="flex justify-between items-center mb-1 mt-2">
+          <div id="mobDispatchTitle" style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:white;line-height:1;">DISPATCH ENGINE</div>
+        </div>
+        <div id="mobDispatchSubtitle" class="text-[9px] text-[#00d084] font-mono tracking-widest uppercase mb-4 transition-all duration-300">Secured Headless Routing</div>
+
+        <!-- MOBILE PROVIDER AUTHENTICATION SHIELD -->
+        <div id="mobRideAuthHeader" style="display:none; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); padding:10px 16px; border-radius:14px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:6px; height:6px; background:#00d084; border-radius:50%;" id="mobAuthDot"></span>
+            <span id="mobAuthBadgeText" style="font-family:'Space Mono',monospace; font-size:10px; color:rgba(255,255,255,0.6);">Disconnected</span>
+          </div>
+          <button onclick="mobSignOutProvider()" style="background:none; border:none; color:#ff3333; font-family:'Space Mono',monospace; font-size:9px; cursor:pointer; font-weight:bold; text-transform:uppercase; outline:none;">Disconnect</button>
+        </div>
+
+        <!-- MOBILE PROVIDER LOGIN CONTAINER -->
+        <div id="mobRideLoginContainer" style="display:none; flex-direction:column; gap:16px; margin-bottom:20px;">
+          <!-- Will be dynamically populated via JS -->
+        </div>
+
+        <div id="mobRideBookingFormContainer" class="flex flex-col flex-1">
+          <!-- ROUTE CARD -->
+          <div id="mobRouteInputCard" class="bg-white/5 border border-white/10 rounded-2xl p-4 mb-5 relative overflow-hidden shadow-2xl transition-all duration-300">
+            <div id="mobRouteBar" class="absolute right-0 top-0 bottom-0 w-1 bg-[#00d084] transition-all duration-300"></div>
+            
+            <div class="flex items-center gap-3 mb-3">
+              <div id="mobPickupIndicator" class="w-2.5 h-2.5 rounded-full bg-[#00d084] shadow-[0_0_8px_rgba(0,208,132,0.8)] transition-all duration-300 flex-shrink-0"></div>
+              <input class="bg-transparent border-none text-white font-mono text-[12px] w-full outline-none placeholder-white/40" type="text" id="rideFrom" placeholder="Pickup Location (Detecting...)"/>
+              <button id="mobGpsBtn" class="bg-[#00d084]/20 hover:bg-[#00d084]/40 text-[#00d084] px-2 py-1 rounded text-[9px] font-bold font-mono tracking-widest uppercase transition-all flex-shrink-0 cursor-pointer" onclick="detectRidePickup()">GPS</button>
+            </div>
+            
+            <div class="w-0.5 h-4 bg-white/20 ml-1 mb-3"></div>
+            
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-2.5 h-2.5 flex-shrink-0 flex items-center justify-center text-white/50 text-[10px]">+</div>
+              <input class="bg-transparent border-none text-white/50 font-mono text-[12px] w-full outline-none placeholder-white/20" type="text" id="mobRideStop1" placeholder="+ Add Stop (Optional)"/>
+            </div>
+            
+            <div class="w-0.5 h-4 bg-white/20 ml-1 mb-3"></div>
+            
+            <div class="flex items-center gap-3 mb-4">
+              <div id="mobDestIndicator" class="w-2.5 h-2.5 rounded bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] transition-all duration-300 flex-shrink-0"></div>
+              <input class="bg-transparent border-none text-white font-mono text-[12px] w-full outline-none placeholder-white/40" type="text" id="rideTo" placeholder="Final Destination"/>
+            </div>
+
+            <div class="h-px w-full bg-white/10 my-3"></div>
+            
+            <div class="flex items-center gap-3">
+              <input class="bg-transparent border-none text-white/70 font-mono text-[11px] w-1/2 outline-none" type="text" id="mobPassengerName" placeholder="Passenger Name"/>
+              <div class="w-px h-5 bg-white/10"></div>
+              <input class="bg-transparent border-none text-white/70 font-mono text-[11px] w-1/2 outline-none" type="tel" id="mobPassengerPhone" placeholder="Phone Number"/>
+            </div>
+          </div>
+
+          <!-- Handshake Bar -->
+          <div id="mobTelemetryHandshakeCard" class="mb-5">
+            <div class="text-[9px] font-mono font-bold text-white/30 tracking-[2px] mb-2 uppercase">Live Telemetry Handshake</div>
+            <div class="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center gap-3 transition-all duration-300">
+              <div id="mobHandshakeDot" class="w-2.5 h-2.5 rounded-full bg-[#00d084] animate-pulse shadow-[0_0_8px_#00d084] flex-shrink-0 transition-all duration-300"></div>
+              <div id="mobHandshakeText" class="text-[10px] font-mono text-white/60 tracking-wider transition-all duration-300">Awaiting destination to fetch live vehicles...</div>
+            </div>
+          </div>
+
+          <!-- Prefs -->
+          <div class="flex gap-2 mb-6">
+            <select id="mobDriverLanguage" class="flex-1 bg-white/5 border border-white/10 text-white font-mono text-[10px] p-2.5 rounded-xl outline-none appearance-none">
+              <option value="en">Driver Lang: English</option>
+              <option value="es">Driver Lang: Spanish</option>
+              <option value="fr">Driver Lang: French</option>
+            </select>
+            <button class="bg-white/5 border border-white/10 text-white p-2.5 rounded-xl text-[12px] hover:bg-white/10 transition-colors"></button>
+          </div>
+
+          <button class="w-full bg-[#00d084] text-black font-mono font-bold tracking-widest text-[14px] py-4 rounded-xl shadow-[0_0_15px_rgba(0,208,132,0.4)] uppercase mt-auto cursor-pointer hover:bg-white hover:shadow-[0_0_20px_rgba(255,255,255,0.6)] transition-all" onclick="searchRides()">DISPATCH SEARCH ENGINE </button>
+        </div>
+        
+        <!-- SEARCHING ANIMATION -->
+        <div id="rideSearching" style="display:none;text-align:center;padding:20px 0;">
+          <div class="text-3xl mb-3 animate-spin inline-block"></div>
+          <div class="font-mono text-[14px] font-bold text-white tracking-widest uppercase mb-1">Calculating Telemetry</div>
+          <div class="font-mono text-[9px] text-[#00d084] tracking-widest uppercase" id="searchStatus">Initializing provider handshake...</div>
+        </div>
+        
+        <!-- PROVIDER RESULTS -->
+        <div id="rideProviderResults" style="display:none;padding-top:10px;">
+          <div class="text-[9px] text-white/50 font-mono uppercase tracking-widest mb-3 flex justify-between items-center">
+            <span>Available Providers</span>
+            <span class="text-red-400"> Dynamic Surge Active</span>
+          </div>
+          <div id="providerCards" class="flex flex-col gap-2"></div>
+        </div>
+
+      </div>
+    </div>
+  <!-- Mobile Dispatch Scripts moved to js/features-simple.js -->
+
+    <!-- BOOKING MODAL -->
+    <div id="rideBookingModal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.95);padding:32px 24px;flex-direction:column;align-items:center;justify-content:center;">
+      <div class="booking-card">
+        <div id="bookingProviderLogo" style="font-size:48px;margin-bottom:16px;text-align:center;"></div>
+        <div id="bookingProviderName" style="font-family:'Bebas Neue',sans-serif;font-size:36px;text-align:center;letter-spacing:2px;"></div>
+        <div id="bookingDetails" style="margin:20px 0;"></div>
+        <div id="bookingDriverCard" style="display:none;" class="driver-card">
+          <div class="driver-av" id="bookingDriverAv"></div>
+          <div style="flex:1;">
+            <div id="bookingDriverName" style="font-weight:700;font-size:14px;"></div>
+            <div id="bookingDriverInfo" style="font-size:11px;color:var(--subtext);margin-top:4px;"></div>
+          </div>
+          <div style="text-align:right;">
+            <div id="bookingDriverETA" style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;"></div>
+            <div style="font-size:9px;color:var(--subtext);letter-spacing:2px;">MIN AWAY</div>
+          </div>
+        </div>
+        <div class="booking-progress" id="bookingProgress" style="display:none;">
+          <div class="booking-progress-fill" id="bookingProgressFill"></div>
+        </div>
+        <div id="bookingStatus" style="text-align:center;font-size:11px;letter-spacing:2px;color:var(--subtext);margin:12px 0;"></div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+          <button class="action-btn" id="openAppBtn" style="background:linear-gradient(135deg,#1a1a1a,#111);border:1px solid rgba(255,255,255,0.15);" onclick="openProviderApp()"> Open App to Confirm </button>
+          <button onclick="closeBookingModal()" style="background:transparent;border:1px solid var(--border);color:var(--subtext);padding:14px;border-radius:12px;font-family:'Space Mono',monospace;font-size:11px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- =====================
+     SCREEN: EMERGENCY
+     ==================== -->
