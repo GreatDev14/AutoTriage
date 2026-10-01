@@ -2159,21 +2159,31 @@ Enter Master Security PIN:");
               submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
               joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
               isVerified: false,
+              status: 'pending_verification',
               isPlatformUser: true,
               avail: 'open',
               rating: '5.0',
-              rev: 1,
-              emoji: '👨🏾🔧'
+              rev: 0,
+              emoji: '👨🏾‍🔧'
             };
 
             if (uid) {
               await window.FirebaseDB.collection('mechanics').doc(uid).set(mechanicData, { merge: true });
               // Also update user's role to 'mechanic' in the 'users' collection!
-              await window.FirebaseDB.collection('users').doc(uid).set({ role: 'mechanic' }, { merge: true });
+              await window.FirebaseDB.collection('users').doc(uid).set({
+                role: 'mechanic',
+                email: email,
+                name: owner,
+                phone: phone,
+                isVerified: false,
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+              localStorage.setItem('myMechanicProfile', JSON.stringify(mechanicData));
+              localStorage.setItem('at_current_role', 'mechanic');
               console.log('[AutoTriage] Saved to Firebase under UID:', uid);
             } else {
-              await window.FirebaseDB.collection('mechanics').add(mechanicData);
-              console.log('[AutoTriage] Saved to Firebase (no logged-in user)');
+              await window.FirebaseDB.collection('mechanic_waitlist').add(mechanicData);
+              console.log('[AutoTriage] Saved to mechanic waitlist (account registration required for full profile)');
             }
           } catch(ex) { console.warn('[AutoTriage] Firebase save failed:', ex.message); }
         }

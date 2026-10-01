@@ -3008,6 +3008,16 @@ function saveMechanicProfile() {
     return;
   }
 
+  if (!window.FirebaseAuth || !window.FirebaseAuth.currentUser) {
+    alert('⚠️ Account Required!\n\nPlease sign in or register on the mechanic registration page (/mechanics) first so your workshop profile can be securely saved to your credentials.');
+    if (window.Auth && typeof window.Auth.openMechanicSignup === 'function') {
+      window.Auth.openMechanicSignup();
+    } else {
+      window.location.href = '/mechanics';
+    }
+    return;
+  }
+
   if (!certInput || !certInput.files || certInput.files.length === 0) {
     alert('⚠️ Professional Verification Certificate is required!\n\nPlease attach your mechanical engineering license or business certificate to complete the application.');
     return;
@@ -3027,13 +3037,14 @@ function saveMechanicProfile() {
         emoji: emoji || '👨🏾‍🔧',
         phone,
         wa,
-        email: email || 'mechanic@autotriage.pro',
+        email: email || (window.FirebaseAuth.currentUser && window.FirebaseAuth.currentUser.email) || 'mechanic@autotriage.pro',
         address: addr,
         area: area,
         landmark: landmark,
         rating: '5.0',
-        rev: 1,
-        isVerified: true,
+        rev: 0,
+        isVerified: false,
+        status: 'pending_verification',
         isPlatformUser: true,
         avail: 'open',
         certName: certFile.name,
@@ -3071,7 +3082,7 @@ function saveMechanicProfile() {
       // Memory fallback if network fails
       const fallbackProfile = {
         name, owner, spec: spec || 'General Mechanic', exp: exp || 5, emoji: emoji || '👨🏾‍🔧',
-        phone, wa, email: email || 'mechanic@autotriage.pro', address: addr, area: area, landmark: landmark, rating: '5.0', rev: 1, isVerified: true, isPlatformUser: true
+        phone, wa, email: email || 'mechanic@autotriage.pro', address: addr, area: area, landmark: landmark, rating: '5.0', rev: 0, isVerified: false, status: 'pending_verification', isPlatformUser: true
       };
       localStorage.setItem('myMechanicProfile', JSON.stringify(fallbackProfile));
       if (window.ALL_MECHANICS) window.ALL_MECHANICS.unshift({ id: `fb_mech_${Date.now()}`, ...fallbackProfile });
@@ -5820,3 +5831,9 @@ function closeAppSettingsModal() {
     if (modal) modal.style.display = 'none';
   }, 200);
 }
+
+function handleSandboxLogout() {
+  console.log('[Sandbox] Account logout clicked - Sandbox Mode Active (no live session terminated)');
+  alert('Sandbox Mode: Account logout flow triggered (mock placeholder).');
+}
+window.handleSandboxLogout = handleSandboxLogout;

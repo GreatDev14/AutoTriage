@@ -2,8 +2,18 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.PORT || 8080;
 const rootDir = __dirname;
+const envFile = path.join(rootDir, '.env');
+if (fs.existsSync(envFile)) {
+  fs.readFileSync(envFile, 'utf8').split('\n').forEach(line => {
+    const m = line.match(/^([^=]+)=(.*)$/);
+    if (m && !process.env[m[1].trim()]) {
+      process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
+    }
+  });
+}
+
+const PORT = process.env.PORT || 8080;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

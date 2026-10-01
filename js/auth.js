@@ -9,10 +9,27 @@
 const Auth = (() => {
     let currentUser = null;
     let currentMode = 'login'; // 'login', 'signup', 'forgot', 'otp', 'reset_pass'
-    let pendingAuth = null;    // { mode, email, pass, name, phone, code, expiresAt, attemptsLeft, verifiedEmail }
+    let currentSignupRole = 'driver'; // 'driver' or 'mechanic'
+    let pendingAuth = null;    // { mode, role, email, pass, name, phone, code, expiresAt, attemptsLeft, verifiedEmail }
     let pendingChannel = 'whatsapp'; // 'whatsapp' or 'sms'
     let resendTimer = null;
     let countdownSec = 0;
+
+    // Helper: Apply role routing across AutoTriage views
+    function applyRoleRouting(role) {
+        const activeRole = role || (currentUser && currentUser.role) || localStorage.getItem('at_current_role') || 'driver';
+        localStorage.setItem('at_current_role', activeRole);
+
+        if (activeRole === 'mechanic') {
+            if (typeof switchUserRole === 'function') switchUserRole('mechanic');
+            if (window.app && typeof window.app.switchUserRole === 'function') window.app.switchUserRole('mechanic');
+            if (typeof goTo === 'function') goTo('garage');
+            if (typeof renderMechanicDashboard === 'function') renderMechanicDashboard();
+        } else {
+            if (typeof switchUserRole === 'function') switchUserRole('driver');
+            if (window.app && typeof window.app.switchUserRole === 'function') window.app.switchUserRole('driver');
+        }
+    }
 
     // Helper: Generate or retrieve persistent Device ID for trusted-device tracking
     function getDeviceId() {
@@ -98,20 +115,48 @@ const Auth = (() => {
                 const overlay = document.getElementById('authOverlay');
 
                 if (user) {
+                    let userRole = 'driver';
+                    let uData = null;
+                    if (window.FirebaseDB) {
+                        try {
+                            const uDoc = await FirebaseDB.collection('users').doc(user.uid).get();
+                            if (uDoc.exists) {
+                                uData = uDoc.data();
+                                if (uData.role) userRole = uData.role;
+                                if (uData.isMechanic && (!uData.role || uData.role === 'driver')) userRole = 'mechanic';
+                            }
+                        } catch(e) {
+                            console.warn('[AutoTriage Auth] Note fetching user role on state change:', e);
+                        }
+                    }
+
                     currentUser = {
                         uid: user.uid,
                         email: user.email,
-                        name: user.displayName || user.email.split('@')[0],
+                        name: (uData && uData.name) || user.displayName || user.email.split('@')[0],
+                        role: userRole,
+                        isMechanic: !!(uData && (uData.isMechanic || uData.role === 'mechanic')),
                         emailVerified: user.emailVerified,
                         photoURL: user.photoURL || null
                     };
                     localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
                     localStorage.setItem('autotriage_user_email', user.email);
                     localStorage.setItem('autotriage_device_recognized', 'true');
+                    localStorage.setItem('at_current_role', userRole);
+
+                    if ((userRole === 'mechanic' || (uData && uData.isMechanic)) && window.FirebaseDB) {
+                        try {
+                            const mDoc = await FirebaseDB.collection('mechanics').doc(user.uid).get();
+                            if (mDoc.exists) {
+                                localStorage.setItem('myMechanicProfile', JSON.stringify(mDoc.data()));
+                            }
+                        } catch(mErr) {}
+                    }
 
                     if (overlay) overlay.classList.remove('active');
                     document.body.style.overflow = 'auto';
 
+                    applyRoleRouting(userRole);
                     if (typeof updateUIAfterLogin === 'function') updateUIAfterLogin();
                     if (typeof renderUserProfile === 'function') renderUserProfile();
 
@@ -541,6 +586,7 @@ const Auth = (() => {
                     <p class="clean-auth-sub" id="authSub">Sign up to get early access to AutoTriage AI diagnostics and mechanic network.</p>
                 </div>
 
+
                 <div class="clean-auth-form" id="authFormArea">
                     <div id="standardInputsArea">
                         <div class="clean-input-group" id="emailInputGroup">
@@ -675,7 +721,11 @@ const Auth = (() => {
         }
     }
 
-    function toggle(mode) {
+    function setSignupRole(role) {
+        // Mechanic registration is handled exclusively on the original mechanic registration page (/mechanics)
+    }
+
+    function toggle(mode, options) {
         if (!document.getElementById('authOverlay')) {
             createAuthUI();
         }
@@ -691,7 +741,7 @@ const Auth = (() => {
                 document.body.style.overflow = 'auto';
                 return;
             }
-            switchMode(mode);
+            switchMode(mode, options);
             overlay.classList.add('active');
             document.body.style.overflow = 'hidden';
             setTimeout(() => {
@@ -714,8 +764,14 @@ const Auth = (() => {
         }
     }
 
-    function switchMode(mode) {
+    function switchMode(mode, options) {
         currentMode = mode;
+        if (options && options.role) {
+            currentSignupRole = options.role;
+        } else if (typeof options === 'string' && (options === 'driver' || options === 'mechanic')) {
+            currentSignupRole = options;
+        }
+
         if (!document.getElementById('authOverlay')) {
             createAuthUI();
         }
@@ -735,6 +791,7 @@ const Auth = (() => {
         const standardInputs = document.getElementById('standardInputsArea');
         const otpArea = document.getElementById('otpArea');
         const phonePromptRow = document.getElementById('otpPhonePromptRow');
+        const roleSelector = document.getElementById('authRoleSelector');
 
         if (errorMsg) errorMsg.style.display = 'none';
         if (successMsg) successMsg.style.display = 'none';
@@ -754,6 +811,7 @@ const Auth = (() => {
             if (optionsRow) optionsRow.style.display = 'flex';
             if (otpArea) otpArea.style.display = 'none';
         } else if (mode === 'login') {
+            if (roleSelector) roleSelector.style.display = 'none';
             if (title) title.textContent = 'Welcome Back';
             if (sub) sub.textContent = 'Sign in to access your AutoTriage account and diagnostics.';
             if (btn) btn.textContent = 'Sign In';
@@ -766,6 +824,7 @@ const Auth = (() => {
             if (optionsRow) optionsRow.style.display = 'flex';
             if (otpArea) otpArea.style.display = 'none';
         } else if (mode === 'forgot') {
+            if (roleSelector) roleSelector.style.display = 'none';
             if (title) title.textContent = 'Reset your password';
             if (sub) sub.textContent = 'Enter your email to receive a 4-digit reset code in your inbox.';
             if (btn) btn.textContent = 'Send Reset Code';
@@ -777,6 +836,7 @@ const Auth = (() => {
             if (optionsRow) optionsRow.style.display = 'none';
             if (otpArea) otpArea.style.display = 'none';
         } else if (mode === 'otp') {
+            if (roleSelector) roleSelector.style.display = 'none';
             const targetEmail = pendingAuth?.email || 'your email';
             if (title) title.textContent = 'Security Verification';
             if (sub) sub.innerHTML = `Enter the 4-digit code sent to <strong style="color:#fff;">${targetEmail}</strong>`;
@@ -1153,8 +1213,14 @@ const Auth = (() => {
                         uid: user.uid,
                         email: user.email,
                         name: pendingAuth.name || user.email.split('@')[0],
+                        role: 'driver',
                         emailVerified: true
                     };
+
+                    localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
+                    localStorage.setItem('autotriage_user_email', user.email);
+                    localStorage.setItem('autotriage_device_recognized', 'true');
+                    localStorage.setItem('at_current_role', 'driver');
 
                     if (window.FirebaseDB) {
                         try {
@@ -1181,31 +1247,49 @@ const Auth = (() => {
                             body: JSON.stringify({
                                 to: user.email,
                                 name: currentUser.name,
-                                type: 'driver_welcome'
+                                type: isMech ? 'mechanic_welcome' : 'driver_welcome'
                             })
                         });
                     } catch (e) {}
 
                 } else if (pendingAuth.mode === 'login_verify') {
-                    currentUser = {
-                        uid: pendingAuth.userUid || ('usr_' + deviceId),
-                        email: pendingAuth.email,
-                        name: pendingAuth.name || pendingAuth.email.split('@')[0],
-                        emailVerified: true
-                    };
+                    let userRole = 'driver';
+                    let uData = null;
                     if (window.FirebaseDB && pendingAuth.userUid) {
                         try {
+                            const uDoc = await FirebaseDB.collection('users').doc(pendingAuth.userUid).get();
+                            if (uDoc.exists) {
+                                uData = uDoc.data();
+                                userRole = uData.role || (uData.isMechanic ? 'mechanic' : 'driver');
+                            }
                             await FirebaseDB.collection('users').doc(pendingAuth.userUid).set({
                                 trustedDevices: firebase.firestore.FieldValue.arrayUnion(deviceId),
                                 lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                             }, { merge: true });
                         } catch (e) {}
                     }
-                }
+                    currentUser = {
+                        uid: pendingAuth.userUid || ('usr_' + deviceId),
+                        email: pendingAuth.email,
+                        name: (uData && uData.name) || pendingAuth.name || pendingAuth.email.split('@')[0],
+                        role: userRole,
+                        isMechanic: !!(uData && (uData.isMechanic || uData.role === 'mechanic')),
+                        emailVerified: true
+                    };
+                    localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
+                    localStorage.setItem('autotriage_user_email', currentUser.email);
+                    localStorage.setItem('autotriage_device_recognized', 'true');
+                    localStorage.setItem('at_current_role', userRole);
 
-                localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
-                localStorage.setItem('autotriage_user_email', currentUser.email);
-                localStorage.setItem('autotriage_device_recognized', 'true');
+                    if ((userRole === 'mechanic' || (uData && uData.isMechanic)) && window.FirebaseDB && pendingAuth.userUid) {
+                        try {
+                            const mDoc = await FirebaseDB.collection('mechanics').doc(pendingAuth.userUid).get();
+                            if (mDoc.exists) {
+                                localStorage.setItem('myMechanicProfile', JSON.stringify(mDoc.data()));
+                            }
+                        } catch (e) {}
+                    }
+                }
 
                 btn.textContent = 'Verified!';
                 btn.style.background = '#34C759';
@@ -1216,9 +1300,18 @@ const Auth = (() => {
                     if (overlay) overlay.classList.remove('active');
                     document.body.style.overflow = 'auto';
 
+                    const roleToRoute = (currentUser && currentUser.role) || 'driver';
                     pendingAuth = null;
+                    applyRoleRouting(roleToRoute);
                     if (typeof updateUIAfterLogin === 'function') updateUIAfterLogin();
                     if (typeof renderUserProfile === 'function') renderUserProfile();
+
+                    const isLanding = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.includes('mechanics');
+                    if (roleToRoute === 'mechanic' && isLanding) {
+                        setTimeout(() => {
+                            window.location.href = 'simple.html?role=mechanic';
+                        }, 500);
+                    }
                 }, 400);
 
             } catch (err) {
@@ -1287,6 +1380,7 @@ const Auth = (() => {
                 const otpCode = String(Math.floor(1000 + Math.random() * 9000));
                 pendingAuth = {
                     mode: 'signup',
+                    role: currentSignupRole || 'driver',
                     email: email,
                     pass: pass,
                     name: email.split('@')[0],
@@ -1315,20 +1409,15 @@ const Auth = (() => {
                 const user = userCred.user;
                 const deviceId = getDeviceId();
 
-                currentUser = {
-                    uid: user.uid,
-                    email: user.email,
-                    name: user.displayName || user.email.split('@')[0],
-                    emailVerified: user.emailVerified
-                };
-
-                localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
-                localStorage.setItem('autotriage_user_email', user.email);
-                localStorage.setItem('autotriage_device_recognized', 'true');
-
-                // Mark device as trusted in Firestore immediately
+                let userRole = 'driver';
+                let userData = null;
                 if (window.FirebaseDB) {
                     try {
+                        const uDoc = await FirebaseDB.collection('users').doc(user.uid).get();
+                        if (uDoc.exists) {
+                            userData = uDoc.data();
+                            userRole = userData.role || (userData.isMechanic ? 'mechanic' : 'driver');
+                        }
                         await FirebaseDB.collection('users').doc(user.uid).set({
                             trustedDevices: firebase.firestore.FieldValue.arrayUnion(deviceId),
                             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
@@ -1336,6 +1425,29 @@ const Auth = (() => {
                     } catch (docErr) {
                         console.warn('[AutoTriage Auth] Device save note:', docErr);
                     }
+                }
+
+                currentUser = {
+                    uid: user.uid,
+                    email: user.email,
+                    name: (userData && userData.name) || user.displayName || user.email.split('@')[0],
+                    role: userRole,
+                    isMechanic: !!(userData && (userData.isMechanic || userData.role === 'mechanic')),
+                    emailVerified: user.emailVerified
+                };
+
+                localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
+                localStorage.setItem('autotriage_user_email', user.email);
+                localStorage.setItem('autotriage_device_recognized', 'true');
+                localStorage.setItem('at_current_role', userRole);
+
+                if ((userRole === 'mechanic' || (userData && userData.isMechanic)) && window.FirebaseDB) {
+                    try {
+                        const mDoc = await FirebaseDB.collection('mechanics').doc(user.uid).get();
+                        if (mDoc.exists) {
+                            localStorage.setItem('myMechanicProfile', JSON.stringify(mDoc.data()));
+                        }
+                    } catch (mErr) {}
                 }
 
                 btn.textContent = 'Success!';
@@ -1347,8 +1459,16 @@ const Auth = (() => {
                     if (overlay) overlay.classList.remove('active');
                     document.body.style.overflow = 'auto';
 
+                    applyRoleRouting(userRole);
                     if (typeof updateUIAfterLogin === 'function') updateUIAfterLogin();
                     if (typeof renderUserProfile === 'function') renderUserProfile();
+
+                    const isLanding = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.includes('mechanics');
+                    if (userRole === 'mechanic' && isLanding) {
+                        setTimeout(() => {
+                            window.location.href = 'simple.html?role=mechanic';
+                        }, 500);
+                    }
                 }, 400);
                 return;
             }
@@ -1486,10 +1606,22 @@ const Auth = (() => {
         }
     }
 
+    function openMechanicSignup() {
+        window.location.href = '/mechanics';
+    }
+
+    function openMechanicLogin() {
+        toggle('login');
+    }
+
     return {
         init,
         toggle,
         switchMode,
+        setSignupRole,
+        applyRoleRouting,
+        openMechanicSignup,
+        openMechanicLogin,
         handleAction,
         handleWaitlistSubmit,
         resendOtp,

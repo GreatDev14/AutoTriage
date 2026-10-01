@@ -373,12 +373,24 @@ const app = {
       return alert('Please upload your trade certification or mechanical license.');
     }
 
+    if (!window.FirebaseAuth || !window.FirebaseAuth.currentUser) {
+      alert('⚠️ Account Required: Please log in or register your workshop on the mechanic registration page (/mechanics) first so your profile can be securely linked.');
+      if (window.Auth && typeof window.Auth.openMechanicSignup === 'function') {
+        window.Auth.openMechanicSignup();
+      } else {
+        window.location.href = '/mechanics';
+      }
+      return;
+    }
+
     const btn = document.querySelector('[onclick="app.saveMechanicProfile()"]');
     if (btn) { btn.disabled = true; btn.textContent = 'SUBMITTING…'; }
 
     try {
       const result = await MechAPI.register({
         name, spec, exp, emoji, phone, wa, address, email,
+        isVerified: false,
+        status: 'pending_verification',
         certName: this.mechCertName,
         certData: this.mechCertData
       });

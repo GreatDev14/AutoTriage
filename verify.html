@@ -128,75 +128,6 @@
     @media (max-width: 850px) { .mechanic-hero { grid-template-columns: 1fr; padding-top: 80px; } .mechanic-intro { max-width: 680px; } .mechanic-title { font-size: clamp(72px, 18vw, 132px); } .requirement-grid { grid-template-columns: 1fr; } .requirement-card { min-height: auto; } }
     @media (max-width: 560px) { .mechanic-hero, .requirements { padding-left: 20px; padding-right: 20px; } .form-row { grid-template-columns: 1fr; } .mechanic-footer { padding-left: 20px; padding-right: 20px; flex-direction: column; } }
   
-    /* WELCOME CARD STATUS - BIG VIBRANT WELCOME VIBE */
-    .welcome-card {
-      margin-top: 26px;
-      padding: 32px 24px;
-      background: linear-gradient(135deg, rgba(37, 211, 102, 0.12) 0%, rgba(18, 18, 21, 0.95) 100%);
-      border: 1.5px solid #25D366;
-      border-radius: 20px;
-      text-align: center;
-      box-shadow: 0 12px 45px rgba(37, 211, 102, 0.25);
-      animation: welcomeFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-    @keyframes welcomeFadeIn {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .welcome-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(37, 211, 102, 0.18);
-      border: 1px solid rgba(37, 211, 102, 0.4);
-      color: #25D366;
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      padding: 6px 18px;
-      border-radius: 50px;
-      margin-bottom: 16px;
-    }
-    .welcome-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(34px, 6vw, 48px);
-      letter-spacing: 1.5px;
-      color: #ffffff;
-      margin: 0 0 12px;
-      line-height: 1;
-    }
-    .welcome-text {
-      font-family: 'Inter', sans-serif;
-      font-size: 15px;
-      line-height: 1.7;
-      color: rgba(255, 255, 255, 0.85);
-      max-width: 520px;
-      margin: 0 auto 24px;
-    }
-    .welcome-whatsapp-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      background: #25D366;
-      color: #000000 !important;
-      font-family: 'Space Mono', monospace;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      text-decoration: none;
-      padding: 16px 32px;
-      border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(37, 211, 102, 0.45);
-      transition: all 0.25s;
-    }
-    .welcome-whatsapp-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 35px rgba(37, 211, 102, 0.6);
-    }
 
   </style>
   <script>
@@ -221,6 +152,7 @@
       </ul>
       <div class="nav-right-area">
         <div class="nav-links-auth">
+          <button class="login-trigger-btn" onclick="Auth.toggle('login')">LOGIN</button>
           <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'})">JOIN THE WAITLIST</button>
         </div>
         <div class="nav-mobile-toggle" onclick="toggleMobileMenu()">
@@ -240,6 +172,7 @@
         <div class="mob-divider"></div>
         <a href="index.html" class="mob-back-btn" onclick="toggleMobileMenu()">← Back to AutoTriage</a>
         <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+          <button class="login-trigger-btn" onclick="Auth.toggle('login'); toggleMobileMenu();" style="width:100%; padding:13px; font-size:11px; text-align:center;">LOGIN</button>
           <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'}); toggleMobileMenu();" style="width:100%; padding:13px; font-size:11px; text-align:center;">JOIN THE WAITLIST</button>
         </div>
       </div>
@@ -266,8 +199,8 @@
           <form class="application-form" id="mechanicApplicationForm">
             <div class="form-row"><input class="fi" name="name" type="text" placeholder="OWNER / FULL NAME *" required><input class="fi" name="workshop" type="text" placeholder="WORKSHOP NAME *" required></div>
             <div class="form-row"><input class="fi" name="phone" type="tel" placeholder="ACTIVE PHONE NUMBER *" required><input class="fi" name="whatsapp" type="tel" placeholder="WHATSAPP NUMBER *" required></div>
-            <div class="form-row"><input class="fi" name="email" type="email" placeholder="EMAIL ADDRESS"><input class="fi" name="city" type="text" placeholder="CITY / LOCATION *" required></div>
-            <select class="fi" name="specialization" required><option value="" selected disabled>SELECT SPECIALIZATION *</option><option>General Mechanic</option><option>Engine Specialist</option><option>Auto Electrician</option><option>Brake Specialist</option><option>AC Specialist</option><option>Transmission Specialist</option><option>Tire Shop</option></select>
+            <div class="form-row"><input class="fi" name="email" type="email" placeholder="EMAIL ADDRESS *" required><input class="fi" name="password" type="password" placeholder="PASSWORD (MIN 6 CHARACTERS) *" required minlength="6"></div>
+            <div class="form-row"><input class="fi" name="city" type="text" placeholder="CITY / LOCATION *" required><select class="fi" name="specialization" required><option value="" selected disabled>SELECT SPECIALIZATION *</option><option>General Mechanic</option><option>Engine Specialist</option><option>Auto Electrician</option><option>Brake Specialist</option><option>AC Specialist</option><option>Transmission Specialist</option><option>Tire Shop</option></select></div>
             <input class="fi" name="area" type="text" placeholder="AREA / NEIGHBOURHOOD *" required>
             <input class="fi" name="landmark" type="text" placeholder="LANDMARK DESCRIPTION *" required>
             <div class="group-requirement"><strong>WHATSAPP GROUP REQUIRED</strong><br>All AutoTriage mechanics communicate through the specialist group. <a href="https://chat.whatsapp.com/BlN87SABMVi7NIeypkypr9?s=sh&amp;p=i&amp;mlu=4&amp;ilr=4" target="_blank" rel="noopener">Join the specialist WhatsApp group</a> before submitting.</div>
@@ -317,6 +250,49 @@
       }
     }
     var SPECIALIST_GROUP_LINK = 'https://chat.whatsapp.com/BlN87SABMVi7NIeypkypr9?s=sh&p=i&mlu=4&ilr=4';
+
+    // Auto-detect and pre-fill existing AutoTriage user if logged in
+    function initMechanicFormAuth() {
+      function prefillForm(user) {
+        if (!user) return;
+        var emailInput = document.querySelector('input[name="email"]');
+        var nameInput = document.querySelector('input[name="name"]');
+        var phoneInput = document.querySelector('input[name="phone"]');
+
+        var userEmail = user.email || '';
+        var userName = user.displayName || user.name || (userEmail ? userEmail.split('@')[0] : '');
+        var userPhone = user.phone || localStorage.getItem('autotriage_phone') || localStorage.getItem('user_phone') || '';
+
+        if (emailInput && !emailInput.value && userEmail) emailInput.value = userEmail;
+        if (nameInput && !nameInput.value && userName) nameInput.value = userName;
+        if (phoneInput && !phoneInput.value && userPhone) phoneInput.value = userPhone;
+      }
+
+      try {
+        var stored = JSON.parse(localStorage.getItem('autotriage_user') || 'null');
+        if (stored && stored.email) prefillForm(stored);
+      } catch(e) {}
+
+      if (window.FirebaseAuth) {
+        FirebaseAuth.onAuthStateChanged(function(u) {
+          if (u) {
+            prefillForm({
+              uid: u.uid,
+              email: u.email,
+              displayName: u.displayName,
+              phone: u.phoneNumber
+            });
+          }
+        });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initMechanicFormAuth);
+    } else {
+      initMechanicFormAuth();
+    }
+
     document.getElementById('mechanicApplicationForm').addEventListener('submit', async function(event) {
       event.preventDefault();
       var form = event.currentTarget;
@@ -341,15 +317,184 @@
         waitlist: true 
       };
 
-      // 1. Save data (Try Firebase, with reliable localStorage backup)
+      var targetEmail = (data.email || '').trim().toLowerCase();
+      var targetPassword = (data.password || '').trim();
+      var uid = null;
+
+      // 1. CHECK IF APPLICANT IS ALREADY A REGISTERED MECHANIC (prevents mechanics from joining waitlist more than once)
+      var isAlreadyMechanic = false;
+
+      if (window.FirebaseDB && targetEmail) {
+        try {
+          var waitlistSnap = await window.FirebaseDB.collection('mechanic_waitlist')
+            .where('email', '==', targetEmail)
+            .limit(1)
+            .get();
+          if (!waitlistSnap.empty) {
+            isAlreadyMechanic = true;
+          }
+        } catch (e) {}
+
+        if (!isAlreadyMechanic) {
+          try {
+            var mechSnap = await window.FirebaseDB.collection('mechanics')
+              .where('email', '==', targetEmail)
+              .limit(1)
+              .get();
+            if (!mechSnap.empty) {
+              isAlreadyMechanic = true;
+            }
+          } catch (e) {}
+        }
+
+        if (!isAlreadyMechanic) {
+          try {
+            var userSnap = await window.FirebaseDB.collection('users')
+              .where('email', '==', targetEmail)
+              .limit(1)
+              .get();
+            if (!userSnap.empty) {
+              var ud = userSnap.docs[0].data();
+              if (ud.role === 'mechanic' || ud.isMechanic === true || ud.workshopName) {
+                isAlreadyMechanic = true;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (!isAlreadyMechanic && targetEmail) {
+        try {
+          var localWaitlist = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
+          if (localWaitlist.some(function(item) { return item.email && item.email.toLowerCase() === targetEmail; })) {
+            isAlreadyMechanic = true;
+          }
+          var myProfile = JSON.parse(localStorage.getItem('myMechanicProfile') || 'null');
+          if (myProfile && myProfile.email && myProfile.email.toLowerCase() === targetEmail) {
+            isAlreadyMechanic = true;
+          }
+        } catch(e) {}
+      }
+
+      // IF HE IS A MECHANIC BEFORE: Show notice replacing USER with MECHANIC to prevent duplicate waitlist entries
+      if (isAlreadyMechanic) {
+        button.disabled = false;
+        button.textContent = 'JOIN MECHANIC WAITLIST ->';
+        status.innerHTML = `
+          <div style="color: #ffaa00; background: rgba(255, 170, 0, 0.08); border: 1px solid rgba(255, 170, 0, 0.35); padding: 14px 18px; border-radius: 12px; font-size: 11px; margin-top: 14px; text-align: left; font-family: 'Space Mono', monospace; font-weight: 700; letter-spacing: 0.5px;">
+            ⚠️ EXISTING AUTOTRIAGE MECHANIC FOUND
+          </div>
+        `;
+        status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+
+      // 2. APPLICANT IS NOT A MECHANIC: Register or link seamlessly without showing any error
+      var activeUser = (window.FirebaseAuth && window.FirebaseAuth.currentUser) || null;
+      if (activeUser && activeUser.email && activeUser.email.toLowerCase() === targetEmail) {
+        uid = activeUser.uid;
+        if (targetPassword && targetPassword.length >= 6) {
+          try { await activeUser.updatePassword(targetPassword); } catch(pwErr) {}
+        }
+      } else if (window.FirebaseAuth && targetEmail) {
+        if (targetPassword) {
+          try {
+            var userCred = await window.FirebaseAuth.createUserWithEmailAndPassword(targetEmail, targetPassword);
+            uid = userCred.user.uid;
+          } catch (authErr) {
+            if (authErr.code === 'auth/email-already-in-use') {
+              // Existing AutoTriage user registering as mechanic: sign in or resolve UID cleanly
+              try {
+                var signinCred = await window.FirebaseAuth.signInWithEmailAndPassword(targetEmail, targetPassword);
+                uid = signinCred.user.uid;
+              } catch (loginErr) {
+                // Password didn't match old driver account, but user is not a mechanic yet:
+                // Do NOT block them! Check stored session or Firestore for UID
+                var storedUser = null;
+                try { storedUser = JSON.parse(localStorage.getItem('autotriage_user') || 'null'); } catch(e){}
+                if (storedUser && storedUser.uid && storedUser.email && storedUser.email.toLowerCase() === targetEmail) {
+                  uid = storedUser.uid;
+                }
+                if (!uid && window.FirebaseDB) {
+                  try {
+                    var uSnap = await window.FirebaseDB.collection('users').where('email', '==', targetEmail).limit(1).get();
+                    if (!uSnap.empty) {
+                      uid = uSnap.docs[0].id;
+                    }
+                  } catch (e) {}
+                }
+              }
+            }
+          }
+        } else {
+          var storedUser = null;
+          try { storedUser = JSON.parse(localStorage.getItem('autotriage_user') || 'null'); } catch(e){}
+          if (storedUser && storedUser.uid && storedUser.email && storedUser.email.toLowerCase() === targetEmail) {
+            uid = storedUser.uid;
+          }
+        }
+      }
+
+      var mechanicProfile = {
+        owner: data.name,
+        name: data.workshop,
+        phone: data.phone,
+        wa: data.whatsapp,
+        email: data.email,
+        address: data.area + ', ' + data.landmark + ', ' + data.city,
+        area: data.area,
+        landmark: data.landmark,
+        city: data.city,
+        spec: data.specialization,
+        isVerified: false,
+        verificationStatus: 'pending_verification',
+        status: 'pending_verification',
+        isPlatformUser: true,
+        avail: 'open',
+        rating: '5.0',
+        rev: 0,
+        emoji: '👨🏾‍🔧',
+        submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      // 2. Save data to Firestore (users/{uid}, mechanics/{uid}, and mechanic_waitlist)
       try {
         if (window.FirebaseDB) {
+          if (uid) {
+            // Update users/{uid} with role: 'mechanic' and isMechanic: true (merge preserves existing driver fields)
+            await window.FirebaseDB.collection('users').doc(uid).set({
+              role: 'mechanic',
+              isMechanic: true,
+              email: data.email,
+              name: data.name,
+              phone: data.phone,
+              workshopName: data.workshop,
+              specialization: data.specialization,
+              city: data.city,
+              area: data.area,
+              landmark: data.landmark,
+              whatsapp: data.whatsapp,
+              isVerified: false,
+              verificationStatus: 'pending_verification',
+              mechanicRegisteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+              lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            // Save profile under mechanics/{uid}
+            await window.FirebaseDB.collection('mechanics').doc(uid).set(mechanicProfile, { merge: true });
+          }
+
+          // Also preserve waitlist entry for admin queue
           await window.FirebaseDB.collection('mechanic_waitlist').add(Object.assign({}, payload, {
+            uid: uid || null,
+            isVerified: false,
+            verificationStatus: 'pending_verification',
             status: 'pending_verification',
             onboarding: 'waitlist_joined_with_group',
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
           }));
-          console.log('[AutoTriage] Saved to Firebase collection mechanic_waitlist');
+          console.log('[AutoTriage] Saved authenticated mechanic profile and waitlist entry');
         } else {
           var applications = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
           applications.push(Object.assign({}, payload, { submittedAt: new Date().toISOString() }));
@@ -362,7 +507,27 @@
         localStorage.setItem('at_mechanic_waitlist', JSON.stringify(applications));
       }
 
-      // 2. ALWAYS dispatch Welcome Email with Specialist WhatsApp Group link
+      // Save local sessions
+      if (uid) {
+        var existingUser = null;
+        try { existingUser = JSON.parse(localStorage.getItem('autotriage_user') || 'null'); } catch(e){}
+        var updatedUser = Object.assign({}, existingUser || {}, {
+          uid: uid,
+          email: data.email,
+          name: data.name || (existingUser && existingUser.name),
+          phone: data.phone || (existingUser && existingUser.phone),
+          role: 'mechanic',
+          isMechanic: true,
+          emailVerified: true
+        });
+        localStorage.setItem('autotriage_user', JSON.stringify(updatedUser));
+        localStorage.setItem('autotriage_user_email', data.email);
+        localStorage.setItem('autotriage_device_recognized', 'true');
+        localStorage.setItem('at_current_role', 'mechanic');
+      }
+      localStorage.setItem('myMechanicProfile', JSON.stringify(mechanicProfile));
+
+      // 3. ALWAYS dispatch Welcome Email with Specialist WhatsApp Group link
       var emailSent = false;
       if (data.email) {
         try {
@@ -389,62 +554,19 @@
           console.warn('[AutoTriage] Function send-email note:', emailError.message);
         }
 
-        // Direct Brevo fallback if function was blocked or offline
         if (!emailSent) {
-          try {
-            var directRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'api-key': 'YOUR_BREVO_API_KEY'
-              },
-              body: JSON.stringify({
-                sender: { name: 'AutoTriage', email: 'support@autotriage.app' },
-                to: [{ email: data.email, name: data.name }],
-                subject: 'Welcome to the AutoTriage Specialist Waitlist, ' + data.name + '!',
-                htmlContent: '<!DOCTYPE html><html><body style="margin:0;padding:24px;background:#0b0d14;font-family:Arial,sans-serif;color:#fff;">'
-                  + '<div style="max-width:540px;margin:0 auto;background:#131622;border:1px solid #25D366;border-radius:18px;padding:32px;text-align:center;">'
-                  + '<div style="font-size:52px;margin-bottom:12px;">🎉</div>'
-                  + '<h1 style="color:#25D366;margin:0 0 10px;font-size:26px;">WELCOME TO AUTOTRIAGE, ' + data.name.toUpperCase() + '!</h1>'
-                  + '<p style="color:#bbb;font-size:14px;line-height:1.6;">Your <strong>' + data.specialization + '</strong> workshop in <strong>' + data.city + '</strong> is officially on the mechanic waitlist!</p>'
-                  + '<div style="margin:24px 0;padding:20px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);border-radius:12px;">'
-                  + '<p style="margin:0 0 12px;color:#fff;font-size:13px;font-weight:bold;">⚡ REQUIRED SPECIALIST GROUP</p>'
-                  + '<a href="' + SPECIALIST_GROUP_LINK + '" style="display:inline-block;background:#25D366;color:#000;padding:14px 24px;border-radius:10px;font-weight:bold;text-decoration:none;font-size:13px;">JOIN SPECIALIST WHATSAPP GROUP &rarr;</a>'
-                  + '</div>'
-                  + '<p style="font-size:12px;color:#888;">Questions? Email support@autotriage.app</p>'
-                  + '</div></body></html>'
-              })
-            });
-            if (directRes.ok) emailSent = true;
-          } catch (e2) {
-            console.warn('[AutoTriage] Direct Brevo fallback note:', e2.message);
-          }
+          console.log('[AutoTriage] Email will be queued for server delivery');
         }
       }
 
-      // 3. Render BIG VIBRANT CELEBRATORY WELCOME CARD (Image 2 Redesign)
-      var emailNotice = data.email 
-        ? "We've dispatched your welcome package & WhatsApp invite link to <strong style='color:#fff; text-decoration: underline;'>" + data.email + "</strong>."
-        : "Your workshop details are recorded on our verified roster.";
-
+      // 4. Clean confirmation inside formStatus (displays for 4.5 seconds)
       status.innerHTML = `
-        <div class="welcome-card">
-          <div style="font-size: 52px; margin-bottom: 8px;">🎉</div>
-          <div class="welcome-badge">⚡ OFFICIAL APPLICATION RECEIVED</div>
-          <h3 class="welcome-title">WELCOME, <span style="color: #25D366;">${data.name.toUpperCase()}</span>!</h3>
-          <p class="welcome-text">
-            Your <strong>${data.specialization}</strong> workshop (<strong>${data.workshop}</strong>, ${data.city}) is now officially on the AutoTriage priority queue.<br><br>
-            ${emailNotice}
-          </p>
-          <div style="margin-top: 10px;">
-            <a href="${SPECIALIST_GROUP_LINK}" target="_blank" rel="noopener" class="welcome-whatsapp-btn">
-              <span>👉 JOIN SPECIALIST WHATSAPP GROUP NOW &rarr;</span>
-            </a>
+        <div id="registrationSuccessCard" style="margin-top: 18px; padding: 18px 22px; background: rgba(37, 211, 102, 0.08); border: 1px solid rgba(37, 211, 102, 0.35); border-radius: 10px; font-family: 'Space Mono', monospace; font-size: 11px; line-height: 1.7; color: #25D366; transition: opacity 0.4s ease, transform 0.4s ease;">
+          <div style="font-weight: 700; margin-bottom: 6px; letter-spacing: 1px;">✓ REGISTRATION SUCCESSFUL</div>
+          Welcome, <strong>${data.name}</strong>! Your workshop has been registered and linked to your AutoTriage account. We have sent your official welcome email with the AutoTriage Specialist WhatsApp Group link to <strong>${data.email}</strong>.
+          <div style="margin-top: 14px;">
+            <a href="${SPECIALIST_GROUP_LINK}" target="_blank" rel="noopener" style="display: inline-block; background: #25D366; color: #000; font-weight: 800; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-size: 10px; letter-spacing: 1px;">JOIN SPECIALIST WHATSAPP GROUP &rarr;</a>
           </div>
-          <p style="font-family: 'Space Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 16px;">
-            Immediate access granted. Tap above to enter the group.
-          </p>
         </div>
       `;
 
@@ -452,6 +574,20 @@
       button.disabled = false;
       button.textContent = 'JOIN MECHANIC WAITLIST ->';
       status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Auto-hide success card after exactly 4.5 seconds
+      setTimeout(function() {
+        var card = document.getElementById('registrationSuccessCard');
+        if (card) {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-6px)';
+          setTimeout(function() {
+            status.innerHTML = '';
+          }, 400);
+        } else {
+          status.innerHTML = '';
+        }
+      }, 4500);
     });
   </script>
 <script src="js/auth.js"></script>

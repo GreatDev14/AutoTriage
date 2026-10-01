@@ -11,12 +11,11 @@
     return window.FirebaseDB;
   }
 
-  // Get current user ID
+  // Get current user ID (strict Firebase UID)
   function getUid() {
-    // If not logged in, use a mock ID for prototype purposes
     return (window.FirebaseAuth && window.FirebaseAuth.currentUser) 
            ? window.FirebaseAuth.currentUser.uid 
-           : 'mech_demo_uid';
+           : null;
   }
 
   const MechAPI = {
@@ -26,6 +25,7 @@
     subscribeToChat(driverId, callback) {
       const db = getDb();
       const uid = getUid();
+      if (!uid) return () => {};
       const chatId = [uid, driverId].sort().join('_');
       
       return db.collection("chats").doc(chatId).collection("messages")
@@ -39,6 +39,7 @@
     async sendChatMessage(driverId, text, senderRole = 'mechanic') {
       const db = getDb();
       const uid = getUid();
+      if (!uid) throw new Error("Authentication required to send chat message.");
       const chatId = [uid, driverId].sort().join('_');
       
       return db.collection("chats").doc(chatId).collection("messages").add({
@@ -55,12 +56,43 @@
       const db = getDb();
       const uid = getUid();
       
-      await db.collection('mechanics').doc(uid).set({
-        ...data,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      if (!uid) {
+        throw new Error("Authentication required: Please log in or create an account before registering your workshop.");
+      }
 
-      return { profile: data, token: "firebase" };
+      // Ensure isVerified is false for new submissions unless explicitly granted by admin
+      const isVerified = (data.isVerified === true) ? true : false;
+      const status = isVerified ? 'verified' : (data.status || 'pending_verification');
+      
+      const profileData = {
+        ...data,
+        isVerified: isVerified,
+        verificationStatus: isVerified ? 'verified' : 'pending_verification',
+        status: status,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      // 1. Save profile to mechanics/{uid}
+      await db.collection('mechanics').doc(uid).set(profileData, { merge: true });
+
+      // 2. Ensure users/{uid} has role: 'mechanic'
+      try {
+        const user = window.FirebaseAuth.currentUser;
+        await db.collection('users').doc(uid).set({
+          role: 'mechanic',
+          email: user?.email || data.email || null,
+          name: data.owner || data.name || user?.displayName || 'Mechanic',
+          phone: data.phone || data.wa || null,
+          isVerified: isVerified,
+          verificationStatus: isVerified ? 'verified' : 'pending_verification',
+          lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } catch (userDocErr) {
+        console.warn("[AutoTriage MechAPI] Note on updating users collection:", userDocErr.message);
+      }
+
+      return { success: true, profile: profileData, token: "firebase" };
     },
 
     // ------------------------------------
@@ -69,6 +101,10 @@
     async loadAll() {
       const db = getDb();
       const uid = getUid();
+
+      if (!uid) {
+        return { profile: null, appointments: [], leads: [], portfolio: [] };
+      }
 
       const [profileDoc, apptSnap, leadsSnap, portSnap] = await Promise.all([
         db.collection('mechanics').doc(uid).get(),

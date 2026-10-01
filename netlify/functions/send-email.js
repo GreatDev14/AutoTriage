@@ -3,11 +3,12 @@
 
 const https = require('https');
 
-const BREVO_API_KEY = process.env.BREVO_API_KEY || 'YOUR_BREVO_API_KEY';
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const SENDER_NAME   = 'AutoTriage';
 const SENDER_EMAIL  = 'support@autotriage.app';
 
-function buildEmailHTML(name, spec, city, phone, email) {
+function buildEmailHTML(name, spec, city, phone, email, inviteLink) {
+  const groupUrl = inviteLink || 'https://chat.whatsapp.com/BlN87SABMVi7NIeypkypr9?s=sh&p=i&mlu=4&ilr=4';
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -83,14 +84,40 @@ function buildEmailHTML(name, spec, city, phone, email) {
 
       <!-- What happens next -->
       <tr>
-        <td style="padding:0 32px 24px;">
+        <td style="padding:0 32px 16px;">
           <table width="100%" style="background:#fff8f0;border-radius:12px;border:1px solid #ffe4cc;padding:0;overflow:hidden;">
             <tr>
               <td style="padding:16px 20px;">
                 <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#cc5500;">⚡ What happens next?</p>
                 <p style="margin:0;font-size:13px;color:#666;line-height:1.7;">
-                  The AutoTriage app is still in development, so access is not available yet.
-                  The AutoTriage Specialist WhatsApp group is required for mechanic network updates and onboarding news.
+                  Your workshop details and credentials have been recorded. Our team reviews submissions before verified repair leads are dispatched. All network communications are conducted through our official specialist group below.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- WhatsApp Specialist Group Invite Box -->
+      <tr>
+        <td style="padding:0 32px 24px;">
+          <table width="100%" style="background:#f0fdf4;border-radius:12px;border:1.5px solid #22c55e;padding:0;overflow:hidden;box-shadow:0 4px 16px rgba(34,197,94,0.12);">
+            <tr>
+              <td style="background:#16a34a;padding:10px 20px;text-align:center;">
+                <span style="color:#ffffff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">💬 REQUIRED STEP FOR ALL MECHANICS</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px;text-align:center;">
+                <h3 style="margin:0 0 8px;font-size:18px;color:#166534;font-weight:900;">AutoTriage Specialist WhatsApp Group</h3>
+                <p style="margin:0 0 18px;font-size:13px;color:#374151;line-height:1.6;">
+                  All AutoTriage mechanics communicate and receive priority repair leads through our official WhatsApp group. Tap below to join:
+                </p>
+                <a href="${groupUrl}" target="_blank" rel="noopener" style="display:inline-block;background:#25D366;color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;text-decoration:none;padding:15px 30px;border-radius:10px;box-shadow:0 4px 15px rgba(37,211,102,0.4);text-transform:uppercase;">
+                  👉 JOIN SPECIALIST WHATSAPP GROUP &rarr;
+                </a>
+                <p style="margin:14px 0 0;font-size:11px;color:#6b7280;word-break:break-all;">
+                  Direct link: <a href="${groupUrl}" style="color:#16a34a;font-weight:bold;">${groupUrl}</a>
                 </p>
               </td>
             </tr>
@@ -152,7 +179,6 @@ exports.handler = async function(event, context) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Email provider is not configured' }) };
   }
 
-
   const recipientName = name || to.split('@')[0];
   const inviteLink = groupLink || 'https://chat.whatsapp.com/BlN87SABMVi7NIeypkypr9?s=sh&p=i&mlu=4&ilr=4';
   const isOtp = type === 'otp' || type === 'password_reset';
@@ -166,9 +192,8 @@ exports.handler = async function(event, context) {
     htmlContent = `<!DOCTYPE html><html><body style="margin:0;background:#08090d;font-family:Arial,Helvetica,sans-serif;color:#f5f5f5;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;background:#08090d;"><tr><td align="center"><table width="100%" style="max-width:560px;background:#111219;border:1px solid #2b2d38;border-radius:18px;overflow:hidden;"><tr><td style="padding:30px;text-align:center;background:linear-gradient(135deg,#24070b,#111219);border-bottom:2px solid #e52b3a;"><div style="font-size:18px;font-weight:900;letter-spacing:4px;color:#ffffff;">AUTO <span style="color:#e52b3a;">TRIAGE</span></div><div style="margin-top:9px;color:#9a9ca8;font-size:10px;letter-spacing:2px;text-transform:uppercase;">AI Vehicle Intelligence Platform</div></td></tr><tr><td style="padding:38px 32px;text-align:center;"><div style="font-size:44px;margin-bottom:16px;">&#9889;</div><div style="display:inline-block;padding:7px 15px;border:1px solid #e52b3a;border-radius:20px;color:#ff5360;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">ACCOUNT CREATED</div><h1 style="margin:20px 0 12px;font-size:28px;letter-spacing:1px;color:#ffffff;">WELCOME, ${recipientName}!</h1><p style="margin:0;color:#b2b4bf;font-size:14px;line-height:1.8;">Your AutoTriage account has been created successfully.</p></td></tr><tr><td style="padding:0 32px 30px;"><div style="padding:20px;background:#181a23;border:1px solid #2b2d38;border-radius:12px;"><div style="color:#ff5360;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">WHAT HAPPENS NEXT</div><p style="margin:0;color:#b2b4bf;font-size:13px;line-height:1.8;">The AutoTriage app is still in development. We will email you when launch access and the full driver experience are ready.</p></div></td></tr><tr><td style="padding:20px 32px;text-align:center;border-top:1px solid #2b2d38;color:#777b88;font-size:11px;">Questions? Contact <a href="mailto:support@autotriage.app" style="color:#ff5360;text-decoration:none;">support@autotriage.app</a><br><br>AutoTriage - AI-powered vehicle intelligence</td></tr></table></td></tr></table></body></html>`;
     textContent = `Welcome to AutoTriage, ${recipientName}! Your account has been created. The app is still in development, and we will share launch updates as they become available.`;
   } else {
-    htmlContent = buildEmailHTML(recipientName, spec || 'Mechanic', city || 'N/A', phone || 'N/A', to);
-    htmlContent = htmlContent.replace('</body>', `<div style="text-align:center;padding:0 32px 32px;"><a href="${inviteLink}" style="display:inline-block;background:#25D366;color:#ffffff;padding:14px 22px;border-radius:8px;font-weight:700;text-decoration:none;">JOIN THE AUTOTRIAGE SPECIALIST WHATSAPP GROUP</a></div></body>`);
-    textContent = `Thanks for joining the AutoTriage waitlist, ${recipientName}! The app is still in development and access is not available yet. The AutoTriage Specialist WhatsApp group is required for mechanic network updates: ${inviteLink} Questions? support@autotriage.app`;
+    htmlContent = buildEmailHTML(recipientName, spec || 'Mechanic', city || 'N/A', phone || 'N/A', to, inviteLink);
+    textContent = `Welcome to the AutoTriage Network, ${recipientName}!\n\nYour ${spec || 'Mechanic'} workshop in ${city || 'N/A'} is officially registered on the mechanic waitlist.\n\nREQUIRED STEP: Join the AutoTriage Specialist WhatsApp Group to receive onboarding updates and verified repair leads:\n${inviteLink}\n\nQuestions? Contact us at support@autotriage.app`;
   }
 
   const payload = JSON.stringify({
