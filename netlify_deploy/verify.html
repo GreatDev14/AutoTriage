@@ -458,10 +458,18 @@
         joinedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      // 2. Save data to Firestore (users/{uid}, mechanics/{uid}, and mechanic_waitlist)
+      // 2. Save data to dedicated Firestore collection: mechanic_waitlist and users/{uid}
       try {
         if (window.FirebaseDB) {
+          var waitlistData = Object.assign({}, mechanicProfile, {
+            uid: uid || null,
+            onboarding: 'waitlist_joined_with_group'
+          });
+
           if (uid) {
+            // Save exclusively into dedicated mechanic_waitlist collection
+            await window.FirebaseDB.collection('mechanic_waitlist').doc(uid).set(waitlistData, { merge: true });
+
             // Update users/{uid} with role: 'mechanic' and isMechanic: true (merge preserves existing driver fields)
             await window.FirebaseDB.collection('users').doc(uid).set({
               role: 'mechanic',
@@ -480,21 +488,10 @@
               mechanicRegisteredAt: firebase.firestore.FieldValue.serverTimestamp(),
               lastLogin: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-
-            // Save profile under mechanics/{uid}
-            await window.FirebaseDB.collection('mechanics').doc(uid).set(mechanicProfile, { merge: true });
+          } else {
+            await window.FirebaseDB.collection('mechanic_waitlist').add(waitlistData);
           }
-
-          // Also preserve waitlist entry for admin queue
-          await window.FirebaseDB.collection('mechanic_waitlist').add(Object.assign({}, payload, {
-            uid: uid || null,
-            isVerified: false,
-            verificationStatus: 'pending_verification',
-            status: 'pending_verification',
-            onboarding: 'waitlist_joined_with_group',
-            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }));
-          console.log('[AutoTriage] Saved authenticated mechanic profile and waitlist entry');
+          console.log('[AutoTriage] Saved to dedicated mechanic_waitlist collection');
         } else {
           var applications = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
           applications.push(Object.assign({}, payload, { submittedAt: new Date().toISOString() }));

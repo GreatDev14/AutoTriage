@@ -2168,7 +2168,7 @@ Enter Master Security PIN:");
             };
 
             if (uid) {
-              await window.FirebaseDB.collection('mechanics').doc(uid).set(mechanicData, { merge: true });
+              await window.FirebaseDB.collection('mechanic_waitlist').doc(uid).set(mechanicData, { merge: true });
               // Also update user's role to 'mechanic' in the 'users' collection!
               await window.FirebaseDB.collection('users').doc(uid).set({
                 role: 'mechanic',
@@ -2180,10 +2180,10 @@ Enter Master Security PIN:");
               }, { merge: true });
               localStorage.setItem('myMechanicProfile', JSON.stringify(mechanicData));
               localStorage.setItem('at_current_role', 'mechanic');
-              console.log('[AutoTriage] Saved to Firebase under UID:', uid);
+              console.log('[AutoTriage] Saved to mechanic_waitlist under UID:', uid);
             } else {
               await window.FirebaseDB.collection('mechanic_waitlist').add(mechanicData);
-              console.log('[AutoTriage] Saved to mechanic waitlist (account registration required for full profile)');
+              console.log('[AutoTriage] Saved to mechanic_waitlist');
             }
           } catch(ex) { console.warn('[AutoTriage] Firebase save failed:', ex.message); }
         }
