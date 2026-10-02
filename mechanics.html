@@ -291,6 +291,13 @@
       initMechanicFormAuth();
     }
 
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+      });
+    }
+
     document.getElementById('mechanicApplicationForm').addEventListener('submit', async function(event) {
       event.preventDefault();
       var form = event.currentTarget;
@@ -515,7 +522,7 @@
       status.innerHTML = `
         <div id="registrationSuccessCard" style="margin-top: 18px; padding: 18px 22px; background: rgba(37, 211, 102, 0.08); border: 1px solid rgba(37, 211, 102, 0.35); border-radius: 10px; font-family: 'Space Mono', monospace; font-size: 11px; line-height: 1.7; color: #25D366; transition: opacity 0.4s ease, transform 0.4s ease;">
           <div style="font-weight: 700; margin-bottom: 6px; letter-spacing: 1px;">✓ REGISTRATION SUCCESSFUL</div>
-          Welcome, <strong>${data.name}</strong>! Your workshop has been registered and linked to your AutoTriage account. We have sent your official welcome email with the AutoTriage Specialist WhatsApp Group link to <strong>${data.email}</strong>.
+          Welcome, <strong>${escapeHTML(data.name)}</strong>! Your workshop has been registered and linked to your AutoTriage account. We have sent your official welcome email with the AutoTriage Specialist WhatsApp Group link to <strong>${escapeHTML(data.email)}</strong>.
           <div style="margin-top: 14px;">
             <a href="${SPECIALIST_GROUP_LINK}" target="_blank" rel="noopener" style="display: inline-block; background: #25D366; color: #000; font-weight: 800; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-size: 10px; letter-spacing: 1px;">JOIN SPECIALIST WHATSAPP GROUP &rarr;</a>
           </div>
