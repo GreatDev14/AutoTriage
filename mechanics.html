@@ -40,8 +40,8 @@
     .group-requirement a { color: #25D366; font-weight: 700; }
     .group-confirmation { display: flex; align-items: flex-start; gap: 9px; margin-top: 10px; color: var(--fg); }
     .group-confirmation input { accent-color: #25D366; margin-top: 2px; }
-    .waitlist-button { width: 100%; border: 0; min-height: 54px; background: var(--accent); color: white; font: 700 10px 'Space Mono', monospace; letter-spacing: 3px; cursor: pointer; transition: transform .25s, background .25s; }
-    .waitlist-button:hover { background: #ef3948; transform: translateY(-2px); }
+    .register-button { width: 100%; border: 0; min-height: 54px; background: var(--accent); color: white; font: 700 10px 'Space Mono', monospace; letter-spacing: 3px; cursor: pointer; transition: transform .25s, background .25s; }
+    .register-button:hover { background: #ef3948; transform: translateY(-2px); }
     .form-status { min-height: 18px; color: var(--success); font-size: 10px; line-height: 1.6; }
     .requirements { padding: 120px 6vw 140px; border-top: 1px solid var(--border); background: var(--mid); }
     .requirements-inner { max-width: 1180px; margin: 0 auto; }
@@ -185,15 +185,15 @@
             </svg>
             BACK TO AUTOTRIAGE
           </a>
-          <div class="mechanic-kicker">Join the verified network</div>
+          <div class="mechanic-kicker">Join the mechanics network</div>
           <h1 class="mechanic-title">EARN WITH<br><span>AUTO TRIAGE</span></h1>
           <p class="mechanic-lead">Bring your workshop into the network built for drivers who need the right help, right now.</p>
-          <p class="mechanic-note">Join the waitlist to start verification. Once your details and documents are reviewed, your workshop can receive trusted repair leads from AutoTriage drivers.</p>
+          <p class="mechanic-note">Register your workshop to join the network and get your profile saved directly to the AutoTriage mechanic network.</p>
         </div>
 
         <div class="application-panel">
-          <h2>JOIN THE WAITLIST</h2>
-          <p>Tell us about your workshop. We will contact you on WhatsApp when your verification review is ready.</p>
+          <h2>REGISTER YOUR WORKSHOP</h2>
+          <p>Tell us about your workshop. Your profile will be registered and linked to your AutoTriage account.</p>
           <form class="application-form" id="mechanicApplicationForm">
             <div class="form-row"><input class="fi" name="name" type="text" placeholder="OWNER / FULL NAME *" required><input class="fi" name="workshop" type="text" placeholder="WORKSHOP NAME *" required></div>
             <div class="form-row"><input class="fi" name="phone" type="tel" placeholder="ACTIVE PHONE NUMBER *" required><input class="fi" name="whatsapp" type="tel" placeholder="WHATSAPP NUMBER *" required></div>
@@ -203,8 +203,8 @@
             <input class="fi" name="landmark" type="text" placeholder="LANDMARK DESCRIPTION *" required>
             <div class="group-requirement"><strong>WHATSAPP GROUP REQUIRED</strong><br>All AutoTriage mechanics communicate through the specialist group. <a href="https://chat.whatsapp.com/BlN87SABMVi7NIeypkypr9?s=sh&amp;p=i&amp;mlu=4&amp;ilr=4" target="_blank" rel="noopener">Join the specialist WhatsApp group</a> before submitting.</div>
             <label class="group-confirmation"><input name="groupJoined" type="checkbox" value="yes" required> I have joined the AutoTriage Specialist WhatsApp group and agree to receive mechanic network updates there.</label>
-            <p class="form-footnote">By joining the waitlist, you confirm that the details belong to your workshop and may be reviewed for mechanic verification.</p>
-            <button class="waitlist-button" type="submit">JOIN MECHANIC WAITLIST -></button>
+            <p class="form-footnote">By registering, you confirm that the details belong to your workshop and will be saved to your AutoTriage mechanic profile.</p>
+            <button class="register-button" type="submit">REGISTER WORKSHOP -></button>
             <div class="form-status" id="formStatus" role="status" aria-live="polite"></div>
           </form>
         </div>
@@ -212,13 +212,13 @@
 
       <section class="requirements">
         <div class="requirements-inner">
-          <div class="requirements-heading"><div class="mechanic-kicker">Verification requirements</div><h2>READY TO<br>GET VERIFIED?</h2><p>AutoTriage verifies every mechanic before drivers see their profile. This protects your reputation, protects drivers, and keeps the network dependable.</p></div>
+          <div class="requirements-heading"><div class="mechanic-kicker">Workshop Network</div><h2>JOIN THE<br>NETWORK</h2><p>AutoTriage connects certified mechanics and workshops directly with drivers who need dependable vehicle diagnostics and repairs.</p></div>
           <div class="requirement-grid">
-            <article class="requirement-card"><div class="requirement-number">01 / Identity</div><h3>Valid means of verification</h3><p>We need a reliable identity check so every profile is connected to a real, accountable workshop owner or lead technician.</p><ul><li>NIN or BVN</li><li>Another accepted government-issued ID</li><li>Your submitted details must match your application</li></ul></article>
-            <article class="requirement-card"><div class="requirement-number">02 / Workshop</div><h3>Workshop and tools verification</h3><p>Your workspace should be ready to handle the jobs you accept through the network, with the tools and equipment that match your specialty.</p><ul><li>Certificate of Registration or Incorporation</li><li>CAC Application Form where registration is pending</li><li>Workshop and core diagnostic tools may be checked</li></ul></article>
-            <article class="requirement-card"><div class="requirement-number">03 / Contact</div><h3>An active WhatsApp phone</h3><p>Repair leads and verification updates move quickly. Your phone must be active and reachable so AutoTriage can contact you when it matters.</p><ul><li>Working phone number</li><li>Active WhatsApp line</li><li>Keep your location and availability current</li></ul></article>
+            <article class="requirement-card"><div class="requirement-number">01 / Profile</div><h3>Direct Workshop Profile</h3><p>Your workshop is saved directly to AutoTriage, giving you instant representation on the network with all your specialty skills.</p><ul><li>Instant profile creation</li><li>Direct link to your specialty</li><li>Connected to your credentials</li></ul></article>
+            <article class="requirement-card"><div class="requirement-number">02 / Workshop</div><h3>Location & Specialization</h3><p>Your workspace and location help drivers in your immediate city and neighborhood connect with your workshop directly.</p><ul><li>Neighborhood and landmark matching</li><li>Specialized categories (Brakes, AC, Engine)</li><li>Direct customer visibility</li></ul></article>
+            <article class="requirement-card"><div class="requirement-number">03 / Community</div><h3>Active WhatsApp Group</h3><p>Stay connected with network updates, repair requests, and technical communications through the official AutoTriage Specialist Group.</p><ul><li>Direct technician community</li><li>Active repair communications</li><li>Immediate network updates</li></ul></article>
           </div>
-          <div class="process-line"><strong>WHAT HAPPENS NEXT:</strong> submit your details -> our team reviews your identity and workshop information -> we contact you on WhatsApp -> verified mechanics receive a trusted profile and relevant repair leads.</div>
+          <div class="process-line"><strong>REGISTRATION PROCESS:</strong> Submit your details -> Account and profile saved to Firebase -> Join WhatsApp specialist group -> Connect with drivers.</div>
         </div>
       </section>
     </main>
@@ -318,8 +318,7 @@
         area: data.area, 
         landmark: data.landmark, 
         city: data.city, 
-        spec: data.specialization, 
-        waitlist: true 
+        spec: data.specialization 
       };
 
       var targetEmail = (data.email || '').trim().toLowerCase();
@@ -368,11 +367,11 @@
       // IF HE IS A MECHANIC BEFORE: Show notice to prevent duplicate registrations
       if (isAlreadyMechanic) {
         button.disabled = false;
-        button.textContent = 'JOIN MECHANIC WAITLIST ->';
+        button.textContent = 'REGISTER WORKSHOP ->';
         status.innerHTML = `
           <div style="color: #ffaa00; background: rgba(255, 170, 0, 0.08); border: 1px solid rgba(255, 170, 0, 0.35); padding: 14px 18px; border-radius: 12px; font-size: 11px; margin-top: 14px; text-align: left; font-family: 'Space Mono', monospace; font-weight: 700; letter-spacing: 0.5px;">
             ⚠️ EXISTING AUTOTRIAGE MECHANIC FOUND
-            <div style="font-weight: 400; margin-top: 4px; opacity: 0.85; font-size: 10.5px;">This email is already registered on the AutoTriage mechanic waitlist.</div>
+            <div style="font-weight: 400; margin-top: 4px; opacity: 0.85; font-size: 10.5px;">This email is already registered as an AutoTriage mechanic.</div>
           </div>
         `;
         status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -531,7 +530,7 @@
 
       form.reset();
       button.disabled = false;
-      button.textContent = 'JOIN MECHANIC WAITLIST ->';
+      button.textContent = 'REGISTER WORKSHOP ->';
       status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       // Auto-hide success card after exactly 4.5 seconds

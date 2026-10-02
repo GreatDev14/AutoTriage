@@ -38,7 +38,7 @@ function buildEmailHTML(name, spec, city, phone, email, inviteLink) {
           </h1>
           <p style="margin:0;font-size:14px;color:#555555;line-height:1.6;">
             Your <strong style="color:#111;">${spec}</strong> workshop in <strong style="color:#111;">${city}</strong><br>
-            has joined the <strong style="color:#cc0000;">AutoTriage mechanic waitlist</strong>.
+            is officially registered on the <strong style="color:#cc0000;">AutoTriage Mechanic Network</strong>.
           </p>
         </td>
       </tr>
@@ -90,7 +90,7 @@ function buildEmailHTML(name, spec, city, phone, email, inviteLink) {
               <td style="padding:16px 20px;">
                 <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#cc5500;">⚡ What happens next?</p>
                 <p style="margin:0;font-size:13px;color:#666;line-height:1.7;">
-                  Your workshop details and credentials have been recorded. Our team reviews submissions before verified repair leads are dispatched. All network communications are conducted through our official specialist group below.
+                  Your workshop details and account have been registered successfully. All network communications and repair leads are conducted through our official specialist group below.
                 </p>
               </td>
             </tr>
@@ -193,13 +193,13 @@ exports.handler = async function(event, context) {
     textContent = `Welcome to AutoTriage, ${recipientName}! Your account has been created. The app is still in development, and we will share launch updates as they become available.`;
   } else {
     htmlContent = buildEmailHTML(recipientName, spec || 'Mechanic', city || 'N/A', phone || 'N/A', to, inviteLink);
-    textContent = `Welcome to the AutoTriage Network, ${recipientName}!\n\nYour ${spec || 'Mechanic'} workshop in ${city || 'N/A'} is officially registered on the mechanic waitlist.\n\nREQUIRED STEP: Join the AutoTriage Specialist WhatsApp Group to receive onboarding updates and verified repair leads:\n${inviteLink}\n\nQuestions? Contact us at support@autotriage.app`;
+    textContent = `Welcome to the AutoTriage Network, ${recipientName}!\n\nYour ${spec || 'Mechanic'} workshop in ${city || 'N/A'} is officially registered on the AutoTriage Mechanic Network.\n\nREQUIRED STEP: Join the AutoTriage Specialist WhatsApp Group to receive repair leads and network updates:\n${inviteLink}\n\nQuestions? Contact us at support@autotriage.app`;
   }
 
   const payload = JSON.stringify({
     sender: { name: SENDER_NAME, email: SENDER_EMAIL },
     to: [{ email: to, name: recipientName }],
-    subject: isOtp ? `Your AutoTriage security code` : (isDriverWelcome ? `Welcome to AutoTriage, ${recipientName}!` : `Thanks for joining the AutoTriage waitlist, ${recipientName}!`),
+    subject: isOtp ? `Your AutoTriage security code` : (isDriverWelcome ? `Welcome to AutoTriage, ${recipientName}!` : `Welcome to the AutoTriage Mechanic Network, ${recipientName}!`),
     htmlContent,
     textContent,
     headers: {
