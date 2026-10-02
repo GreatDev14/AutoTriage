@@ -1099,6 +1099,8 @@
       border-radius: 18px;
       padding: 10px 14px;
       box-shadow: var(--shadow-sm);
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .diag-step-item {
@@ -1112,6 +1114,14 @@
       cursor: pointer;
       user-select: none;
       transition: all 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .diag-step-label {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
     }
 
     .diag-step-dot {
@@ -1127,6 +1137,7 @@
       border: 1px solid var(--border);
       color: var(--subtext);
       transition: all 0.2s ease;
+      flex-shrink: 0;
     }
 
     .diag-step-item.active .diag-step-dot {
@@ -1152,10 +1163,73 @@
       background: var(--border);
       margin: 0 6px;
       transition: all 0.2s ease;
+      min-width: 4px;
+      border-radius: 2px;
     }
 
     .diag-step-line.active {
       background: #e63946;
+    }
+
+    .step-label-short {
+      display: none;
+    }
+    .step-label-full {
+      display: inline;
+    }
+
+    @media (max-width: 520px) {
+      .diag-stepper {
+        padding: 9px 10px;
+        border-radius: 16px;
+      }
+      .diag-step-item {
+        gap: 5px;
+        font-size: 9px;
+        letter-spacing: -0.2px;
+      }
+      .diag-step-dot {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+      }
+      .diag-step-line {
+        margin: 0 4px;
+        min-width: 4px;
+      }
+      .step-label-full {
+        display: none;
+      }
+      .step-label-short {
+        display: inline;
+      }
+    }
+
+    @media (max-width: 375px) {
+      .diag-stepper {
+        padding: 7px 8px;
+        border-radius: 14px;
+      }
+      .diag-step-item {
+        gap: 3.5px;
+        font-size: 8px;
+        letter-spacing: -0.3px;
+      }
+      .diag-step-dot {
+        width: 18px;
+        height: 18px;
+        font-size: 9px;
+      }
+      .diag-step-line {
+        margin: 0 3px;
+        min-width: 3px;
+      }
+    }
+
+    @media (max-width: 335px) {
+      .diag-step-item:not(.active) .diag-step-label {
+        display: none;
+      }
     }
 
     /* PRESET SYMPTOM CHIPS */
@@ -6413,22 +6487,22 @@
         <div class="diag-stepper" id="diagStepper">
           <div class="diag-step-item active" id="diagStepIndicator1" onclick="goToStep(1)">
             <div class="diag-step-dot">1</div>
-            <span>DESCRIBE</span>
+            <span class="diag-step-label"><span class="step-label-full">DESCRIBE</span><span class="step-label-short">DESCRIBE</span></span>
           </div>
           <div class="diag-step-line" id="diagStepLine1"></div>
           <div class="diag-step-item" id="diagStepIndicator2" onclick="goToStep(2)">
             <div class="diag-step-dot">2</div>
-            <span>AI CHECK 1</span>
+            <span class="diag-step-label"><span class="step-label-full">AI CHECK 1</span><span class="step-label-short">CHECK 1</span></span>
           </div>
           <div class="diag-step-line" id="diagStepLine2"></div>
           <div class="diag-step-item" id="diagStepIndicator3" onclick="goToStep(3)">
             <div class="diag-step-dot">3</div>
-            <span>AI CHECK 2</span>
+            <span class="diag-step-label"><span class="step-label-full">AI CHECK 2</span><span class="step-label-short">CHECK 2</span></span>
           </div>
           <div class="diag-step-line" id="diagStepLine3"></div>
           <div class="diag-step-item" id="diagStepIndicator4">
             <div class="diag-step-dot">4</div>
-            <span>REPORT</span>
+            <span class="diag-step-label"><span class="step-label-full">REPORT</span><span class="step-label-short">REPORT</span></span>
           </div>
         </div>
 
