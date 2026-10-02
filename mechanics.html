@@ -321,31 +321,19 @@
       var targetPassword = (data.password || '').trim();
       var uid = null;
 
-      // 1. CHECK IF APPLICANT IS ALREADY A REGISTERED MECHANIC (prevents mechanics from joining waitlist more than once)
+      // 1. CHECK IF APPLICANT IS ALREADY A REGISTERED MECHANIC
       var isAlreadyMechanic = false;
 
       if (window.FirebaseDB && targetEmail) {
         try {
-          var waitlistSnap = await window.FirebaseDB.collection('mechanic_waitlist')
+          var mechSnap = await window.FirebaseDB.collection('mechanics')
             .where('email', '==', targetEmail)
             .limit(1)
             .get();
-          if (!waitlistSnap.empty) {
+          if (!mechSnap.empty) {
             isAlreadyMechanic = true;
           }
         } catch (e) {}
-
-        if (!isAlreadyMechanic) {
-          try {
-            var mechSnap = await window.FirebaseDB.collection('mechanics')
-              .where('email', '==', targetEmail)
-              .limit(1)
-              .get();
-            if (!mechSnap.empty) {
-              isAlreadyMechanic = true;
-            }
-          } catch (e) {}
-        }
 
         if (!isAlreadyMechanic) {
           try {
@@ -365,10 +353,6 @@
 
       if (!isAlreadyMechanic && targetEmail) {
         try {
-          var localWaitlist = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
-          if (localWaitlist.some(function(item) { return item.email && item.email.toLowerCase() === targetEmail; })) {
-            isAlreadyMechanic = true;
-          }
           var myProfile = JSON.parse(localStorage.getItem('myMechanicProfile') || 'null');
           if (myProfile && myProfile.email && myProfile.email.toLowerCase() === targetEmail) {
             isAlreadyMechanic = true;
@@ -376,7 +360,7 @@
         } catch(e) {}
       }
 
-      // IF HE IS A MECHANIC BEFORE: Show notice replacing USER with MECHANIC to prevent duplicate waitlist entries
+      // IF HE IS A MECHANIC BEFORE: Show notice to prevent duplicate registrations
       if (isAlreadyMechanic) {
         button.disabled = false;
         button.textContent = 'JOIN MECHANIC WAITLIST ->';
@@ -446,62 +430,42 @@
         landmark: data.landmark,
         city: data.city,
         spec: data.specialization,
-        isVerified: false,
-        verificationStatus: 'pending_verification',
-        status: 'pending_verification',
         isPlatformUser: true,
         avail: 'open',
         rating: '5.0',
         rev: 0,
         emoji: '👨🏾‍🔧',
-        submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      // 2. Save data to dedicated Firestore collection: mechanic_waitlist and users/{uid}
+      // 3. Save data to Firestore: mechanics/{uid} (single source of truth) and users/{uid}
       try {
-        if (window.FirebaseDB) {
-          var waitlistData = Object.assign({}, mechanicProfile, {
-            uid: uid || null,
-            onboarding: 'waitlist_joined_with_group'
-          });
+        if (window.FirebaseDB && uid) {
+          // Save mechanic profile directly to mechanics/{uid}
+          await window.FirebaseDB.collection('mechanics').doc(uid).set(mechanicProfile, { merge: true });
 
-          if (uid) {
-            // Save exclusively into dedicated mechanic_waitlist collection
-            await window.FirebaseDB.collection('mechanic_waitlist').doc(uid).set(waitlistData, { merge: true });
+          // Update users/{uid} with role: 'mechanic' and isMechanic: true
+          await window.FirebaseDB.collection('users').doc(uid).set({
+            role: 'mechanic',
+            isMechanic: true,
+            email: data.email,
+            name: data.name,
+            phone: data.phone,
+            workshopName: data.workshop,
+            specialization: data.specialization,
+            city: data.city,
+            area: data.area,
+            landmark: data.landmark,
+            whatsapp: data.whatsapp,
+            mechanicRegisteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
 
-            // Update users/{uid} with role: 'mechanic' and isMechanic: true (merge preserves existing driver fields)
-            await window.FirebaseDB.collection('users').doc(uid).set({
-              role: 'mechanic',
-              isMechanic: true,
-              email: data.email,
-              name: data.name,
-              phone: data.phone,
-              workshopName: data.workshop,
-              specialization: data.specialization,
-              city: data.city,
-              area: data.area,
-              landmark: data.landmark,
-              whatsapp: data.whatsapp,
-              isVerified: false,
-              verificationStatus: 'pending_verification',
-              mechanicRegisteredAt: firebase.firestore.FieldValue.serverTimestamp(),
-              lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-          } else {
-            await window.FirebaseDB.collection('mechanic_waitlist').add(waitlistData);
-          }
-          console.log('[AutoTriage] Saved to dedicated mechanic_waitlist collection');
-        } else {
-          var applications = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
-          applications.push(Object.assign({}, payload, { submittedAt: new Date().toISOString() }));
-          localStorage.setItem('at_mechanic_waitlist', JSON.stringify(applications));
+          console.log('[AutoTriage] Saved mechanic profile to mechanics/' + uid);
         }
       } catch (dbErr) {
         console.warn('[AutoTriage] Database save note:', dbErr.message);
-        var applications = JSON.parse(localStorage.getItem('at_mechanic_waitlist') || '[]');
-        applications.push(Object.assign({}, payload, { submittedAt: new Date().toISOString() }));
-        localStorage.setItem('at_mechanic_waitlist', JSON.stringify(applications));
       }
 
       // Save local sessions

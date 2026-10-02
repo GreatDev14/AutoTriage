@@ -60,19 +60,16 @@
         throw new Error("Authentication required: Please log in or create an account before registering your workshop.");
       }
 
-      // Ensure isVerified is false for new submissions unless explicitly granted by admin
-      const isVerified = (data.isVerified === true) ? true : false;
-      const status = isVerified ? 'verified' : (data.status || 'pending_verification');
-      
       const profileData = {
         ...data,
-        isVerified: isVerified,
-        verificationStatus: isVerified ? 'verified' : 'pending_verification',
-        status: status,
+        avail: data.avail || 'open',
+        rating: data.rating || '5.0',
+        rev: data.rev || 0,
+        emoji: data.emoji || '👨🏾‍🔧',
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      // 1. Save profile to mechanics/{uid}
+      // 1. Save profile to mechanics/{uid} (single source of truth)
       await db.collection('mechanics').doc(uid).set(profileData, { merge: true });
 
       // 2. Ensure users/{uid} has role: 'mechanic'
@@ -80,11 +77,13 @@
         const user = window.FirebaseAuth.currentUser;
         await db.collection('users').doc(uid).set({
           role: 'mechanic',
+          isMechanic: true,
           email: user?.email || data.email || null,
           name: data.owner || data.name || user?.displayName || 'Mechanic',
           phone: data.phone || data.wa || null,
-          isVerified: isVerified,
-          verificationStatus: isVerified ? 'verified' : 'pending_verification',
+          workshopName: data.workshop || data.name || null,
+          specialization: data.specialization || data.spec || null,
+          city: data.city || null,
           lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });

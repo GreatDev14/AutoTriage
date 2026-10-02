@@ -111,14 +111,13 @@ const app = (() => {
       specialty: spec,
       phone: phone,
       city: city,
-      timestamp: new Date().toLocaleString(),
-      verified: false // Must be verified by admin or telemetry check!
+      registeredAt: new Date().toLocaleString()
     };
     
     registry.push(newMech);
     localStorage.setItem('at_mechanic_registry', JSON.stringify(registry));
     
-    alert(`✅ Application successfully submitted to the vetting queue!\n\nName: ${name}\nSpecialization: ${spec}\n\nYour profile will remain in the 'pending_verification' queue until reviewed by our compliance administrators (accessible via footer logo in index.html).`);
+    alert(`✅ Workshop successfully registered!\n\nName: ${name}\nSpecialization: ${spec}\n\nYour profile has been saved.`);
     
     // Clear form
     document.getElementById('joinName').value = '';

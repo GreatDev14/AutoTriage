@@ -386,18 +386,15 @@ const app = {
     const btn = document.querySelector('[onclick="app.saveMechanicProfile()"]');
     if (btn) { btn.disabled = true; btn.textContent = 'SUBMITTING…'; }
 
-    try {
       const result = await MechAPI.register({
         name, spec, exp, emoji, phone, wa, address, email,
-        isVerified: false,
-        status: 'pending_verification',
         certName: this.mechCertName,
         certData: this.mechCertData
       });
       // Mirror to localStorage so existing rendering still works
       localStorage.setItem('myMechanicProfile', JSON.stringify(result.profile));
       this.renderMechanicDashboard();
-      alert('✅ Registration submitted! Your profile is pending verification.');
+      alert('✅ Workshop profile saved successfully!');
     } catch(err) {
       alert('❌ Registration failed: ' + err.message);
     } finally {
@@ -995,53 +992,6 @@ const app = {
             ⚡ SEED MOCK TEST DATA
           </button>
           <button onclick="app.resetMechanicData()" class="w-full mt-3 relative z-10 py-3 rounded-xl border border-red-500/20 hover:border-red-500/40 bg-red-950/10 text-red-400 hover:bg-red-950/20 font-mono font-bold tracking-widest text-[10px] uppercase transition-all duration-300 outline-none">
-            ⚠️ RESET CACHED DEVELOPER DATA
-          </button>
-        </div>
-      `;
-    } else if (profile.status === 'pending_verification') {
-      container.innerHTML = `
-        <div class="bg-[#0a0a0c] border border-zinc-800/80 rounded-3xl p-10 text-center relative overflow-hidden shadow-2xl">
-          <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none opacity-30"></div>
-          <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-          
-          <div class="text-6xl mb-6 animate-pulse filter drop-shadow-[0_0_25px_rgba(245,158,11,0.3)]">🛡️</div>
-          <div class="bg-amber-500/10 border border-amber-500/20 text-amber-500 font-mono text-[9px] font-bold px-4 py-1.5 rounded-full tracking-widest uppercase mb-4 inline-block">
-            VETTING IN PROGRESS
-          </div>
-          <h2 class="font-bebas text-4xl text-white tracking-wider mb-2">APPLICATION UNDER REVIEW</h2>
-          <p class="text-xs text-zinc-400 font-mono max-w-sm mx-auto leading-relaxed mb-8">
-            Our verification nodes are auditing your uploaded mechanic credentials: <strong class="text-amber-500 block mt-2 font-bold">${profile.certName}</strong>
-          </p>
-
-          <div class="w-full text-left bg-black/40 border border-zinc-800 p-6 rounded-2xl font-mono text-xs leading-loose mb-8 max-w-lg mx-auto">
-            <div class="flex justify-between items-center mb-3 pb-3 border-b border-zinc-800/60">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping inline-block mr-1"></span>
-                <span class="text-white font-semibold">📁 Trade Certificate check</span>
-              </div>
-              <span class="text-amber-500 font-bold tracking-widest animate-pulse">[AUDITING]</span>
-            </div>
-            <div class="flex justify-between items-center mb-3 pb-3 border-b border-zinc-800/60 text-white/30">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-zinc-700 animate-pulse inline-block mr-1"></span>
-                <span>📍 Coordinates & geo alignment</span>
-              </div>
-              <span class="text-zinc-600 font-bold">[PENDING]</span>
-            </div>
-            <div class="flex justify-between items-center text-white/30">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-zinc-700 animate-pulse inline-block mr-1"></span>
-                <span>🚨 Safety background checks</span>
-              </div>
-              <span class="text-zinc-600 font-bold">[PENDING]</span>
-            </div>
-          </div>
-
-          <button onclick="app.simulateVerificationApproval()" class="w-full max-w-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-bold font-mono py-4 rounded-xl tracking-widest transition-all duration-300 shadow-[0_10px_28px_rgba(245,158,11,0.25)] text-[11px] uppercase">
-            ⚡ SIMULATE SYSTEM APPROVAL
-          </button>
-          <button onclick="app.resetMechanicData()" class="w-full max-w-lg mt-3 py-3 rounded-xl border border-red-500/20 hover:border-red-500/40 bg-red-950/10 text-red-400 hover:bg-red-950/20 font-mono font-bold tracking-widest text-[10px] uppercase transition-all duration-300 outline-none">
             ⚠️ RESET CACHED DEVELOPER DATA
           </button>
         </div>

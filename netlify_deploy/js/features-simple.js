@@ -2146,43 +2146,6 @@ function renderMechanicDashboard() {
         <button class="action-btn" onclick="deregisterMechanic()" style="margin-top: 10px; background: rgba(255, 51, 51, 0.1); border: 1px solid rgba(255, 51, 51, 0.2); color: #ff3333; font-weight: bold; font-family: 'Space Mono', monospace; letter-spacing: 1px; font-size: 11px; padding: 14px; border-radius: 16px; cursor: pointer; text-transform: uppercase;">⚠️ RESET CACHED DEVELOPER DATA</button>
       </div>
     `;
-  } else if (profile.status === 'pending_verification') {
-    // NEW PREMIUM PENDING VERIFICATION STATE (VETTING PANEL)
-    container.innerHTML = `
-      <div style="background: linear-gradient(145deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%); border: 1px solid rgba(255,255,255,0.06); border-radius: 28px; padding: 36px 24px; text-align: center; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-        <div style="position: absolute; top: -40px; right: -40px; font-size: 140px; opacity: 0.03; transform: rotate(-15deg); font-weight: bold; pointer-events: none;">🛡️</div>
-        
-        <div style="font-size: 68px; margin-bottom: 20px; animation: pulse 2s infinite ease-in-out; filter: drop-shadow(0 0 20px rgba(255,170,0,0.2));">🛡️</div>
-        <div style="background: rgba(255,170,0,0.08); color: #ffaa00; font-size: 9px; font-family: 'Space Mono', monospace; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; padding: 4px 16px; border-radius: 20px; display: inline-block; margin-bottom: 20px; border: 1px solid rgba(255,170,0,0.15);">VETTING IN PROGRESS</div>
-        <h2 style="font-family: 'Space Mono', monospace; font-size: 24px; font-weight: bold; letter-spacing: -0.5px; color: white; margin: 0 0 10px; text-transform: uppercase;">APPLICATION UNDER REVIEW</h2>
-        <p style="font-size: 11.5px; color: var(--subtext); font-family: 'Space Mono', monospace; line-height: 1.7; max-width: 320px; margin: 0 auto 32px;">
-          Our verification nodes are auditing your uploaded mechanic credentials: <strong style="color: #ffaa00; display: block; margin-top: 6px; font-weight: bold;">${profile.certName}</strong>
-        </p>
-        
-        <!-- SECURE TELEMETRY LOGS -->
-        <div style="width: 100%; text-align: left; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 20px; padding: 22px; font-family: 'Space Mono', monospace; font-size: 10.5px; line-height: 2.2; margin-bottom: 32px; box-shadow: inset 0 6px 16px rgba(0,0,0,0.4);">
-          <div id="auditLog1" style="color: white; display: flex; justify-content: space-between; align-items: center;">
-            <span>📁 Professional Certificate check</span> 
-            <span style="color: #ffaa00; font-weight: bold; animation: pulse 1.5s infinite;">[AUDITING]</span>
-          </div>
-          <div id="auditLog2" style="color: rgba(255,255,255,0.15); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.03); margin-top: 10px; padding-top: 10px;">
-            <span>📍 Coordinates & geo alignment</span> 
-            <span style="font-weight: bold;">[PENDING]</span>
-          </div>
-          <div id="auditLog3" style="color: rgba(255,255,255,0.15); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.03); margin-top: 10px; padding-top: 10px;">
-            <span>🚨 Safety background credentials</span> 
-            <span style="font-weight: bold;">[PENDING]</span>
-          </div>
-        </div>
-        
-        <!-- SIMULATE COMPLIANCE BUTTON -->
-        <button onclick="simulateVerificationApproval()" class="action-btn" style="width: 100%; background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%); color: black; font-weight: bold; font-family: 'Space Mono', monospace; letter-spacing: 1.5px; font-size: 11px; padding: 18px; border-radius: 16px; border: none; cursor: pointer; text-transform: uppercase; box-shadow: 0 10px 28px rgba(255,136,0,0.15);">
-          ⚡ SIMULATE SYSTEM APPROVAL
-        </button>
-        <button class="action-btn" onclick="seedMockTestData()" style="margin-top: 10px; width: 100%; background: rgba(255, 170, 0, 0.1); border: 1px solid rgba(255, 170, 0, 0.2); color: #ffaa00; font-weight: bold; font-family: 'Space Mono', monospace; letter-spacing: 1px; font-size: 11px; padding: 14px; border-radius: 16px; cursor: pointer; text-transform: uppercase;">⚡ SEED MOCK TEST DATA</button>
-        <button class="action-btn" onclick="deregisterMechanic()" style="margin-top: 10px; background: rgba(255, 51, 51, 0.1); border: 1px solid rgba(255, 51, 51, 0.2); color: #ff3333; font-weight: bold; font-family: 'Space Mono', monospace; letter-spacing: 1px; font-size: 11px; padding: 14px; border-radius: 16px; cursor: pointer; text-transform: uppercase;">⚠️ RESET CACHED DEVELOPER DATA</button>
-      </div>
-    `;
   } else {
     // PREMIUM ACTIVE VERIFIED WORKSPACE DASHBOARD
     const activeColor = profile.avail === 'open' ? '#00d084' : '#e63946';
@@ -3043,8 +3006,6 @@ function saveMechanicProfile() {
         landmark: landmark,
         rating: '5.0',
         rev: 0,
-        isVerified: false,
-        status: 'pending_verification',
         isPlatformUser: true,
         avail: 'open',
         certName: certFile.name,
@@ -3082,7 +3043,7 @@ function saveMechanicProfile() {
       // Memory fallback if network fails
       const fallbackProfile = {
         name, owner, spec: spec || 'General Mechanic', exp: exp || 5, emoji: emoji || '👨🏾‍🔧',
-        phone, wa, email: email || 'mechanic@autotriage.pro', address: addr, area: area, landmark: landmark, rating: '5.0', rev: 0, isVerified: false, status: 'pending_verification', isPlatformUser: true
+        phone, wa, email: email || 'mechanic@autotriage.pro', address: addr, area: area, landmark: landmark, rating: '5.0', rev: 0, isPlatformUser: true
       };
       localStorage.setItem('myMechanicProfile', JSON.stringify(fallbackProfile));
       if (window.ALL_MECHANICS) window.ALL_MECHANICS.unshift({ id: `fb_mech_${Date.now()}`, ...fallbackProfile });

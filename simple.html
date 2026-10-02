@@ -9528,8 +9528,8 @@ Format: {"summary":"one sentence","likely_causes":["c1","c2","c3"],"severity":"L
             isRealOverpass: true
           }));
 
-          // Combine with featured mechanics
-          ALL_MECHANICS = [...ALL_MECHANICS.filter(m => m.isVerified), ...realMechs];
+          // Combine with real overpass mechanics
+          ALL_MECHANICS = [...ALL_MECHANICS, ...realMechs];
           renderMechs(getMechs());
         }
       } catch (err) {
@@ -9564,14 +9564,14 @@ Format: {"summary":"one sentence","likely_causes":["c1","c2","c3"],"severity":"L
       const q = (document.getElementById('mechQ')?.value || '').toLowerCase();
       let list = [...ALL_MECHANICS];
 
-      // Inject current user's active mechanic profile at the top if verified!
+      // Inject current user's active mechanic profile at the top
       const myProfile = JSON.parse(localStorage.getItem('myMechanicProfile'));
-      if (myProfile && myProfile.isVerified) {
+      if (myProfile && (myProfile.name || myProfile.owner)) {
         const myMechItem = {
-          id: 'my_profile_mech', name: myProfile.name, spec: myProfile.spec, area: 'My Workshop',
-          phone: myProfile.phone, wa: myProfile.wa, rating: '5.0', rev: myProfile.rev || 0,
-          avail: myProfile.avail || 'open', emoji: myProfile.emoji || '',
-          isVerified: true, isPlatformUser: true, city: myProfile.city,
+          id: 'my_profile_mech', name: myProfile.name || myProfile.workshopName || 'My Workshop', spec: myProfile.spec || myProfile.specialization || 'General Mechanic', area: myProfile.area || 'My Workshop',
+          phone: myProfile.phone, wa: myProfile.wa || myProfile.whatsapp || myProfile.phone, rating: myProfile.rating || '5.0', rev: myProfile.rev || 0,
+          avail: myProfile.avail || 'open', emoji: myProfile.emoji || '👨🏾‍🔧',
+          isPlatformUser: true, city: myProfile.city || '',
           lat: userLat || 6.5244, lng: userLng || 3.3792
         };
         const idx = list.findIndex(m => m.id === 'my_profile_mech');

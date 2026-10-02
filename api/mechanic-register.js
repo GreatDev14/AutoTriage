@@ -84,7 +84,6 @@ module.exports = async function(req, res) {
     const key = cleanPhone.replace(/[\s\-]/g, '');
 
     const existingProfile = db[key];
-    const isVerified = req.body.isVerified !== undefined ? !!req.body.isVerified : (existingProfile?.isVerified || false);
 
     const profile = {
       name:       sanitize(name),
@@ -97,8 +96,6 @@ module.exports = async function(req, res) {
       email:      sanitize(email || ''),
       certName:   certName ? sanitize(certName, 100) : (existingProfile?.certName || ''),
       certData:   certData || existingProfile?.certData || '',
-      status:     isVerified ? 'verified' : 'pending_verification',
-      isVerified,
       avail:      existingProfile?.avail || 'open',
       registeredAt: existingProfile?.registeredAt || new Date().toISOString(),
       updatedAt:  new Date().toISOString()
