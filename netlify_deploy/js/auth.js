@@ -106,36 +106,23 @@ const Auth = (() => {
                 const overlay = document.getElementById('authOverlay');
 
                 if (user) {
-                    let userRole = 'driver';
                     let uData = null;
                     if (window.FirebaseDB) {
                         try {
                             const uDoc = await FirebaseDB.collection('users').doc(user.uid).get();
                             if (uDoc.exists) {
                                 uData = uDoc.data();
-                                if (uData.role) userRole = uData.role;
-                                if (uData.isMechanic && (!uData.role || uData.role === 'driver')) userRole = 'mechanic';
                             }
                         } catch(e) {
                             console.warn('[AutoTriage Auth] Note fetching user role on state change:', e);
                         }
                     }
 
-                    if (userRole === 'mechanic' || (uData && (uData.isMechanic || uData.role === 'mechanic'))) {
-                        // Mechanic accounts access AutoTriage via the mobile app — not on the website
-                        try { await FirebaseAuth.signOut(); } catch(e){}
-                        localStorage.removeItem('autotriage_user');
-                        localStorage.removeItem('autotriage_user_email');
-                        localStorage.removeItem('at_current_role');
-                        currentUser = null;
-                        return;
-                    }
-
                     currentUser = {
                         uid: user.uid,
                         email: user.email,
                         name: (uData && uData.name) || user.displayName || user.email.split('@')[0],
-                        role: userRole,
+                        role: 'driver',
                         isMechanic: !!(uData && (uData.isMechanic || uData.role === 'mechanic')),
                         emailVerified: user.emailVerified,
                         photoURL: user.photoURL || null
@@ -143,21 +130,12 @@ const Auth = (() => {
                     localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
                     localStorage.setItem('autotriage_user_email', user.email);
                     localStorage.setItem('autotriage_device_recognized', 'true');
-                    localStorage.setItem('at_current_role', userRole);
-
-                    if ((userRole === 'mechanic' || (uData && uData.isMechanic)) && window.FirebaseDB) {
-                        try {
-                            const mDoc = await FirebaseDB.collection('mechanics').doc(user.uid).get();
-                            if (mDoc.exists) {
-                                localStorage.setItem('myMechanicProfile', JSON.stringify(mDoc.data()));
-                            }
-                        } catch(mErr) {}
-                    }
+                    localStorage.setItem('at_current_role', 'driver');
 
                     if (overlay) overlay.classList.remove('active');
                     document.body.style.overflow = 'auto';
 
-                    applyRoleRouting(userRole);
+                    applyRoleRouting('driver');
                     if (typeof updateUIAfterLogin === 'function') updateUIAfterLogin();
                     if (typeof renderUserProfile === 'function') renderUserProfile();
 
@@ -1410,14 +1388,12 @@ const Auth = (() => {
                 const user = userCred.user;
                 const deviceId = getDeviceId();
 
-                let userRole = 'driver';
                 let userData = null;
                 if (window.FirebaseDB) {
                     try {
                         const uDoc = await FirebaseDB.collection('users').doc(user.uid).get();
                         if (uDoc.exists) {
                             userData = uDoc.data();
-                            userRole = userData.role || (userData.isMechanic ? 'mechanic' : 'driver');
                         }
                         await FirebaseDB.collection('users').doc(user.uid).set({
                             trustedDevices: firebase.firestore.FieldValue.arrayUnion(deviceId),
@@ -1428,27 +1404,12 @@ const Auth = (() => {
                     }
                 }
 
-                // Check if account is a mechanic: Website login is for drivers only, mechanic access is reserved for the mobile app
-                if (userRole === 'mechanic' || (userData && (userData.isMechanic || userData.role === 'mechanic'))) {
-                    try { await FirebaseAuth.signOut(); } catch(e){}
-                    localStorage.removeItem('autotriage_user');
-                    localStorage.removeItem('autotriage_user_email');
-                    localStorage.removeItem('at_current_role');
-                    btn.disabled = false;
-                    btn.textContent = 'LOGIN';
-                    const errorMsg = document.getElementById('authErrorMsg');
-                    if (errorMsg) {
-                        errorMsg.textContent = 'Mechanic accounts access AutoTriage via the mobile app. Website login is for drivers only.';
-                        errorMsg.style.display = 'block';
-                    }
-                    return;
-                }
-
+                // On the website, all users log in as standard drivers/users
                 currentUser = {
                     uid: user.uid,
                     email: user.email,
                     name: (userData && userData.name) || user.displayName || user.email.split('@')[0],
-                    role: userRole,
+                    role: 'driver',
                     isMechanic: !!(userData && (userData.isMechanic || userData.role === 'mechanic')),
                     emailVerified: user.emailVerified
                 };
@@ -1456,16 +1417,7 @@ const Auth = (() => {
                 localStorage.setItem('autotriage_user', JSON.stringify(currentUser));
                 localStorage.setItem('autotriage_user_email', user.email);
                 localStorage.setItem('autotriage_device_recognized', 'true');
-                localStorage.setItem('at_current_role', userRole);
-
-                if ((userRole === 'mechanic' || (userData && userData.isMechanic)) && window.FirebaseDB) {
-                    try {
-                        const mDoc = await FirebaseDB.collection('mechanics').doc(user.uid).get();
-                        if (mDoc.exists) {
-                            localStorage.setItem('myMechanicProfile', JSON.stringify(mDoc.data()));
-                        }
-                    } catch (mErr) {}
-                }
+                localStorage.setItem('at_current_role', 'driver');
 
                 btn.textContent = 'Success!';
                 btn.style.background = '#34C759';
@@ -1476,16 +1428,9 @@ const Auth = (() => {
                     if (overlay) overlay.classList.remove('active');
                     document.body.style.overflow = 'auto';
 
-                    applyRoleRouting(userRole);
+                    applyRoleRouting('driver');
                     if (typeof updateUIAfterLogin === 'function') updateUIAfterLogin();
                     if (typeof renderUserProfile === 'function') renderUserProfile();
-
-                    const isLanding = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.includes('mechanics');
-                    if (userRole === 'mechanic' && isLanding) {
-                        setTimeout(() => {
-                            window.location.href = 'simple.html?role=mechanic';
-                        }, 500);
-                    }
                 }, 400);
                 return;
             }

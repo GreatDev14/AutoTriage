@@ -365,6 +365,7 @@
         status.innerHTML = `
           <div style="color: #ffaa00; background: rgba(255, 170, 0, 0.08); border: 1px solid rgba(255, 170, 0, 0.35); padding: 14px 18px; border-radius: 12px; font-size: 11px; margin-top: 14px; text-align: left; font-family: 'Space Mono', monospace; font-weight: 700; letter-spacing: 0.5px;">
             ⚠️ EXISTING AUTOTRIAGE MECHANIC FOUND
+            <div style="font-weight: 400; margin-top: 4px; opacity: 0.85; font-size: 10.5px;">This email is already registered on the AutoTriage mechanic waitlist.</div>
           </div>
         `;
         status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -443,9 +444,9 @@
           // Save mechanic profile directly to mechanics/{uid}
           await window.FirebaseDB.collection('mechanics').doc(uid).set(mechanicProfile, { merge: true });
 
-          // Update users/{uid} with role: 'mechanic' and isMechanic: true
+          // Update users/{uid} with isMechanic: true and workshop details
           await window.FirebaseDB.collection('users').doc(uid).set({
-            role: 'mechanic',
+            role: 'driver',
             isMechanic: true,
             email: data.email,
             name: data.name,
@@ -466,14 +467,17 @@
         console.warn('[AutoTriage] Database save note:', dbErr.message);
       }
 
-      // Sign out from web session — mechanic workspace login is reserved for the mobile app
-      if (window.FirebaseAuth) {
-        try { await window.FirebaseAuth.signOut(); } catch(e){}
-      }
-      localStorage.removeItem('at_current_role');
-      localStorage.removeItem('autotriage_user');
-      localStorage.removeItem('autotriage_user_email');
+      // On the website, everyone operates as a standard user/driver.
+      // Mechanics do not have to perform any separate login on the website.
+      localStorage.setItem('at_current_role', 'driver');
       localStorage.removeItem('myMechanicProfile');
+      var existingUser = null;
+      try { existingUser = JSON.parse(localStorage.getItem('autotriage_user') || 'null'); } catch(e){}
+      if (existingUser && (existingUser.uid === uid || existingUser.email === data.email)) {
+        existingUser.isMechanic = true;
+        existingUser.role = 'driver';
+        localStorage.setItem('autotriage_user', JSON.stringify(existingUser));
+      }
 
       // 3. ALWAYS dispatch Welcome Email with Specialist WhatsApp Group link
       var emailSent = false;

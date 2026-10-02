@@ -2167,9 +2167,9 @@ Enter Master Security PIN:");
 
             if (uid) {
               await window.FirebaseDB.collection('mechanics').doc(uid).set(mechanicData, { merge: true });
-              // Also update user's role to 'mechanic' in the 'users' collection!
+              // Update user profile with isMechanic: true while maintaining web role as driver
               await window.FirebaseDB.collection('users').doc(uid).set({
-                role: 'mechanic',
+                role: 'driver',
                 isMechanic: true,
                 email: email,
                 name: owner,
@@ -2181,12 +2181,7 @@ Enter Master Security PIN:");
                 landmark: landmark,
                 lastLogin: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
-              if (window.FirebaseAuth) {
-                try { await window.FirebaseAuth.signOut(); } catch(e){}
-              }
-              localStorage.removeItem('at_current_role');
-              localStorage.removeItem('autotriage_user');
-              localStorage.removeItem('autotriage_user_email');
+              localStorage.setItem('at_current_role', 'driver');
               console.log('[AutoTriage] Saved to mechanics under UID:', uid);
             }
           } catch(ex) { console.warn('[AutoTriage] Firebase save failed:', ex.message); }
