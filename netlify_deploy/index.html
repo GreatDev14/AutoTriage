@@ -2181,8 +2181,12 @@ Enter Master Security PIN:");
                 landmark: landmark,
                 lastLogin: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
-              localStorage.setItem('myMechanicProfile', JSON.stringify(mechanicData));
-              localStorage.setItem('at_current_role', 'mechanic');
+              if (window.FirebaseAuth) {
+                try { await window.FirebaseAuth.signOut(); } catch(e){}
+              }
+              localStorage.removeItem('at_current_role');
+              localStorage.removeItem('autotriage_user');
+              localStorage.removeItem('autotriage_user_email');
               console.log('[AutoTriage] Saved to mechanics under UID:', uid);
             }
           } catch(ex) { console.warn('[AutoTriage] Firebase save failed:', ex.message); }

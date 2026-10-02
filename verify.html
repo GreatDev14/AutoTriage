@@ -152,8 +152,7 @@
       </ul>
       <div class="nav-right-area">
         <div class="nav-links-auth">
-          <button class="login-trigger-btn" onclick="Auth.toggle('login')">LOGIN</button>
-          <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'})">JOIN THE WAITLIST</button>
+          <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'})">REGISTER WORKSHOP</button>
         </div>
         <div class="nav-mobile-toggle" onclick="toggleMobileMenu()">
           <div class="bar"></div>
@@ -172,8 +171,7 @@
         <div class="mob-divider"></div>
         <a href="index.html" class="mob-back-btn" onclick="toggleMobileMenu()">← Back to AutoTriage</a>
         <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
-          <button class="login-trigger-btn" onclick="Auth.toggle('login'); toggleMobileMenu();" style="width:100%; padding:13px; font-size:11px; text-align:center;">LOGIN</button>
-          <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'}); toggleMobileMenu();" style="width:100%; padding:13px; font-size:11px; text-align:center;">JOIN THE WAITLIST</button>
+          <button class="signup-trigger-btn" onclick="document.getElementById('mechanicApplicationForm').scrollIntoView({behavior: 'smooth'}); toggleMobileMenu();" style="width:100%; padding:13px; font-size:11px; text-align:center;">REGISTER WORKSHOP</button>
         </div>
       </div>
     </div>
@@ -468,25 +466,14 @@
         console.warn('[AutoTriage] Database save note:', dbErr.message);
       }
 
-      // Save local sessions
-      if (uid) {
-        var existingUser = null;
-        try { existingUser = JSON.parse(localStorage.getItem('autotriage_user') || 'null'); } catch(e){}
-        var updatedUser = Object.assign({}, existingUser || {}, {
-          uid: uid,
-          email: data.email,
-          name: data.name || (existingUser && existingUser.name),
-          phone: data.phone || (existingUser && existingUser.phone),
-          role: 'mechanic',
-          isMechanic: true,
-          emailVerified: true
-        });
-        localStorage.setItem('autotriage_user', JSON.stringify(updatedUser));
-        localStorage.setItem('autotriage_user_email', data.email);
-        localStorage.setItem('autotriage_device_recognized', 'true');
-        localStorage.setItem('at_current_role', 'mechanic');
+      // Sign out from web session — mechanic workspace login is reserved for the mobile app
+      if (window.FirebaseAuth) {
+        try { await window.FirebaseAuth.signOut(); } catch(e){}
       }
-      localStorage.setItem('myMechanicProfile', JSON.stringify(mechanicProfile));
+      localStorage.removeItem('at_current_role');
+      localStorage.removeItem('autotriage_user');
+      localStorage.removeItem('autotriage_user_email');
+      localStorage.removeItem('myMechanicProfile');
 
       // 3. ALWAYS dispatch Welcome Email with Specialist WhatsApp Group link
       var emailSent = false;

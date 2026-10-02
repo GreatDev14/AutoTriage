@@ -15,20 +15,11 @@ const Auth = (() => {
     let resendTimer = null;
     let countdownSec = 0;
 
-    // Helper: Apply role routing across AutoTriage views
+    // Helper: Apply role routing across AutoTriage views (Website is strictly driver interface)
     function applyRoleRouting(role) {
-        const activeRole = role || (currentUser && currentUser.role) || localStorage.getItem('at_current_role') || 'driver';
-        localStorage.setItem('at_current_role', activeRole);
-
-        if (activeRole === 'mechanic') {
-            if (typeof switchUserRole === 'function') switchUserRole('mechanic');
-            if (window.app && typeof window.app.switchUserRole === 'function') window.app.switchUserRole('mechanic');
-            if (typeof goTo === 'function') goTo('garage');
-            if (typeof renderMechanicDashboard === 'function') renderMechanicDashboard();
-        } else {
-            if (typeof switchUserRole === 'function') switchUserRole('driver');
-            if (window.app && typeof window.app.switchUserRole === 'function') window.app.switchUserRole('driver');
-        }
+        localStorage.setItem('at_current_role', 'driver');
+        if (typeof switchUserRole === 'function') switchUserRole('driver');
+        if (window.app && typeof window.app.switchUserRole === 'function') window.app.switchUserRole('driver');
     }
 
     // Helper: Generate or retrieve persistent Device ID for trusted-device tracking
@@ -128,6 +119,16 @@ const Auth = (() => {
                         } catch(e) {
                             console.warn('[AutoTriage Auth] Note fetching user role on state change:', e);
                         }
+                    }
+
+                    if (userRole === 'mechanic' || (uData && (uData.isMechanic || uData.role === 'mechanic'))) {
+                        // Mechanic accounts access AutoTriage via the mobile app — not on the website
+                        try { await FirebaseAuth.signOut(); } catch(e){}
+                        localStorage.removeItem('autotriage_user');
+                        localStorage.removeItem('autotriage_user_email');
+                        localStorage.removeItem('at_current_role');
+                        currentUser = null;
+                        return;
                     }
 
                     currentUser = {
@@ -1425,6 +1426,22 @@ const Auth = (() => {
                     } catch (docErr) {
                         console.warn('[AutoTriage Auth] Device save note:', docErr);
                     }
+                }
+
+                // Check if account is a mechanic: Website login is for drivers only, mechanic access is reserved for the mobile app
+                if (userRole === 'mechanic' || (userData && (userData.isMechanic || userData.role === 'mechanic'))) {
+                    try { await FirebaseAuth.signOut(); } catch(e){}
+                    localStorage.removeItem('autotriage_user');
+                    localStorage.removeItem('autotriage_user_email');
+                    localStorage.removeItem('at_current_role');
+                    btn.disabled = false;
+                    btn.textContent = 'LOGIN';
+                    const errorMsg = document.getElementById('authErrorMsg');
+                    if (errorMsg) {
+                        errorMsg.textContent = 'Mechanic accounts access AutoTriage via the mobile app. Website login is for drivers only.';
+                        errorMsg.style.display = 'block';
+                    }
+                    return;
                 }
 
                 currentUser = {
